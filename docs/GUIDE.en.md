@@ -4,7 +4,7 @@ English | [Русский](GUIDE.ru.md)
 
 Steam Frame Helper (SFH) is a window of tweaks and utilities for the Steam Frame. It runs in SteamOS Desktop Mode. Almost every feature is turned on and off with a single button, and this guide tells you what each one actually changes on the system.
 
-This guide matches Steam Frame Helper 1.7.0.
+This guide matches Steam Frame Helper 1.7.1.
 
 ## Contents
 
