@@ -11,3 +11,4 @@ steam_frame_helper/tools/amnezia*.sh
 /dist/
 __pycache__/
 *.pyc
+steam_frame_helper/ui_state.json

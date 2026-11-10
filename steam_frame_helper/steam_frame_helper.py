@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Steam Frame Helper: GTK3 utility with system tweaks for Steam Frame."""
 
+import json
 import os
 import subprocess
 import threading
@@ -34,6 +35,9 @@ CSS = b"""
 window { background-color: #1b1e24; color: #e6e6e6; }
 .tool-row { background-color: #242830; border-radius: 8px; padding: 12px; margin: 6px 12px; }
 .section { font-size: 13px; font-weight: bold; color: #8b949e; margin: 14px 16px 2px 16px; }
+expander.section-exp > title { padding: 12px 16px 2px 12px; }
+expander.section-exp > title > arrow { color: #8b949e; min-width: 16px; min-height: 16px; }
+.section-title { font-size: 13px; font-weight: bold; color: #8b949e; margin-left: 4px; }
 .tool-title { font-size: 15px; font-weight: bold; }
 .tool-sub { color: #8b949e; }
 .status-ok { color: #3fb950; font-size: 26px; font-weight: bold; }
@@ -163,6 +167,50 @@ def section(title):
     return lbl
 
 
+UI_STATE = os.path.join(APP_DIR, "ui_state.json")
+
+
+def load_ui_state():
+    try:
+        with open(UI_STATE, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def save_ui_state(key, value):
+    state = load_ui_state()
+    state[key] = value
+    try:
+        with open(UI_STATE + ".tmp", "w", encoding="utf-8") as f:
+            json.dump(state, f)
+        os.replace(UI_STATE + ".tmp", UI_STATE)
+    except OSError:
+        pass
+
+
+class Section(Gtk.Expander):
+    """Collapsible group of rows with a section-style title. The expanded/collapsed
+    state is remembered per key in ui_state.json."""
+
+    def __init__(self, key, title):
+        super().__init__()
+        self.key = key
+        lbl = Gtk.Label(label=title.upper(), xalign=0)
+        lbl.get_style_context().add_class("section-title")
+        self.set_label_widget(lbl)
+        self.get_style_context().add_class("section-exp")
+        self.body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.add(self.body)
+        self.set_expanded(load_ui_state().get(f"section.{key}", True))
+        self.connect("notify::expanded",
+                     lambda exp, _p: save_ui_state(f"section.{key}", exp.get_expanded()))
+
+    def add_row(self, widget):
+        self.body.pack_start(widget, False, False, 0)
+        return widget
+
+
 def page():
     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
     box.set_margin_bottom(12)
@@ -263,10 +311,11 @@ class StatusTool(Gtk.Box):
 
 
 class VrHudTool(StatusTool):
-    """VR HUD with network/streaming stats: install = autostart service; extra button toggles."""
+    """Connection stats overlay in the headset (tools/vr_hud.py): install = autostart
+    service; the extra button shows/hides it."""
 
     def __init__(self, runner):
-        super().__init__(runner, "VR HUD: сеть и стрим в шлеме", "vr_hud.sh",
+        super().__init__(runner, "Статистика соединения с ПК (в шлеме)", "vr_hud.sh",
                          install_label="Включить", remove_label="Выключить",
                          actions_as_root=False)
 
@@ -350,8 +399,6 @@ class RegionTool(StatusTool):
 class QuickActions(Gtk.Box):
     ACTIONS = [
         ("Перезапустить Steam", "restart-steam", False, None),
-        ("Рабочий стол", "desktop", False, "Переключиться в режим рабочего стола?"),
-        ("Игровой режим", "gamemode", False, "Переключиться в игровой режим?"),
         ("Перезагрузить", "reboot", True, "Перезагрузить Steam Frame?"),
     ]
 
@@ -359,7 +406,7 @@ class QuickActions(Gtk.Box):
         super().__init__(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         self.get_style_context().add_class("tool-row")
         text, sub = title_block("Быстрые действия")
-        sub.set_text("Steam, режимы, перезагрузка")
+        sub.set_text("Перезапуск Steam, перезагрузка")
         self.pack_start(text, True, True, 0)
         for label, cmd, root, question in self.ACTIONS:
             btn = Gtk.Button(label=label)
@@ -499,7 +546,14 @@ class PluginsPage:
         self.runner = runner
         self.window = window
         self.script = tool("decky_plugins.py")
-        self.widget, self.box = page()
+        self.widget, outer = page()
+
+        loader = Section("plugins.loader", "Decky Loader")
+        outer.pack_start(loader, False, False, 0)
+        loader.add_row(DeckyTool(runner))
+        installed = Section("plugins.installed", "Установленные плагины")
+        outer.pack_start(installed, False, False, 0)
+        self.box = installed.body
 
         top = row_box()
         text, self.summary = title_block("Плагины Decky")
@@ -888,7 +942,19 @@ class TransferPage:
         self.runner = runner
         self.window = window
         self.script = tool("to_pc.py")
-        self.widget, self.box = page()
+        self.widget, outer = page()
+
+        shots = Section("transfer.screenshots", "Скриншоты")
+        outer.pack_start(shots, False, False, 0)
+        shots.add_row(StatusTool(runner, "Копировать скриншоты на Frame (Pictures/Screenshots)",
+                                 "screenshots_local.sh", install_label="Включить",
+                                 remove_label="Выключить", actions_as_root=False))
+        shots.add_row(StatusTool(runner, "Копировать скриншоты на ПК (Изображения\\SteamFrame)",
+                                 "screenshots_pc.sh", install_label="Включить",
+                                 remove_label="Выключить", actions_as_root=False))
+        files = Section("transfer.files", "Файлы на ПК")
+        outer.pack_start(files, False, False, 0)
+        self.box = files.body
 
         top = row_box()
         text, self.agent = title_block("Отправить на ПК (Загрузки\\SteamFrame)")
@@ -1120,41 +1186,25 @@ class MainWindow(Gtk.Window):
         root.pack_start(self.status, False, False, 0)
 
         tools_page, tools = page()
-        tools.pack_start(section("Сеть"), False, False, 0)
+        net = Section("tools.network", "Сеть")
+        tools.pack_start(net, False, False, 0)
         # AmneziaVPN is not part of the public release; the row appears only where its
         # scripts were added by hand (tools/amneziavpn.sh).
         if os.path.exists(tool("amneziavpn.sh")):
-            tools.pack_start(StatusTool(runner, "AmneziaVPN (нативная сборка ARM64)", "amneziavpn.sh",
-                                        install_label="Установить / обновить",
-                                        reinstall=True, repair=True),
-                             False, False, 0)
-        tools.pack_start(RegionTool(runner), False, False, 0)
-        tools.pack_start(StatusTool(runner, "Wi-Fi без энергосбережения", "wifi.sh",
-                                    install_label="Выключить", remove_label="Включить"),
-                         False, False, 0)
-        tools.pack_start(VrHudTool(runner), False, False, 0)
-        tools.pack_start(section("Плагины"), False, False, 0)
-        tools.pack_start(DeckyTool(runner), False, False, 0)
-        tools.pack_start(section("Система"), False, False, 0)
-        tools.pack_start(StatusTool(runner, "Запись в системный раздел", "readonly.sh",
-                                    install_label="Разблокировать",
-                                    remove_label="Заблокировать",
-                                    status_as_root=True),
-                         False, False, 0)
-        tools.pack_start(StatusTool(runner, "RDP: Wi-Fi без запроса пароля", "rdp_wifi_scan.sh",
-                                    install_label="Включить", remove_label="Выключить",
-                                    status_as_root=True),
-                         False, False, 0)
-        tools.pack_start(QuickActions(runner, self), False, False, 0)
-        tools.pack_start(section("Скриншоты"), False, False, 0)
-        tools.pack_start(StatusTool(runner, "Копировать скриншоты на Frame (Pictures/Screenshots)",
-                                    "screenshots_local.sh", install_label="Включить",
-                                    remove_label="Выключить", actions_as_root=False),
-                         False, False, 0)
-        tools.pack_start(StatusTool(runner, "Копировать скриншоты на ПК (Изображения\\SteamFrame)",
-                                    "screenshots_pc.sh", install_label="Включить",
-                                    remove_label="Выключить", actions_as_root=False),
-                         False, False, 0)
+            net.add_row(StatusTool(runner, "AmneziaVPN (нативная сборка ARM64)", "amneziavpn.sh",
+                                   install_label="Установить / обновить",
+                                   reinstall=True, repair=True))
+        net.add_row(RegionTool(runner))
+        net.add_row(StatusTool(runner, "Wi-Fi без энергосбережения", "wifi.sh",
+                               install_label="Выключить", remove_label="Включить"))
+        net.add_row(VrHudTool(runner))
+        system = Section("tools.system", "Система")
+        tools.pack_start(system, False, False, 0)
+        system.add_row(StatusTool(runner, "Запись в системный раздел", "readonly.sh",
+                                  install_label="Разблокировать",
+                                  remove_label="Заблокировать",
+                                  status_as_root=True))
+        system.add_row(QuickActions(runner, self))
         notebook.append_page(tools_page, Gtk.Label(label="Инструменты"))
 
         notebook.append_page(PluginsPage(runner, self).widget, Gtk.Label(label="Плагины"))
@@ -1164,8 +1214,14 @@ class MainWindow(Gtk.Window):
         notebook.append_page(TransferPage(runner, self).widget, Gtk.Label(label="Передача"))
 
         dev_page, dev = page()
-        dev.pack_start(section("Просмотр"), False, False, 0)
-        dev.pack_start(UiStreamTool(runner), False, False, 0)
+        view = Section("dev.view", "Просмотр")
+        dev.pack_start(view, False, False, 0)
+        view.add_row(UiStreamTool(runner))
+        remote = Section("dev.remote", "Удалённый доступ")
+        dev.pack_start(remote, False, False, 0)
+        remote.add_row(StatusTool(runner, "RDP: Wi-Fi без запроса пароля", "rdp_wifi_scan.sh",
+                                  install_label="Включить", remove_label="Выключить",
+                                  status_as_root=True))
         notebook.append_page(dev_page, Gtk.Label(label="Разработка"))
 
     def log(self, text):

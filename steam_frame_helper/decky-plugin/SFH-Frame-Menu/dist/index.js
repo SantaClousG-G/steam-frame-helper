@@ -314,13 +314,13 @@ function HudPanel() {
     const s = window.__sfhHud = window.__sfhHud || { toggle: 0 };
     s.toggle = (s.toggle || 0) + 1;
   };
-  return h(DFL.PanelSection, { title: "VR HUD" },
+  return h(DFL.PanelSection, { title: "Статистика соединения" },
     h(DFL.PanelSectionRow, null,
       h(DFL.ToggleField, {
-        label: "Показывать HUD",
+        label: "Показывать в шлеме",
         description: state.alive
-          ? "Сеть и стрим внизу поля зрения"
-          : "HUD не запущен: включите его в SFH (Инструменты → Сеть)",
+          ? "Пинг, потери и трафик до ПК внизу поля зрения"
+          : "Не запущена: включите в SFH (Инструменты → Сеть)",
         checked: state.visible,
         disabled: !state.alive,
         onChange: toggle,
