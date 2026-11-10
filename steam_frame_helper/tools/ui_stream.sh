@@ -9,6 +9,7 @@ UNIT=sfh-ui-stream
 PORT=8091
 TOOLS="$(cd "$(dirname "$0")" && pwd)"
 . "$TOOLS/i18n.sh"
+. "$TOOLS/session.sh"
 TOKEN_FILE="$(dirname "$TOOLS")/ui_stream.token"
 
 ip_addr() {

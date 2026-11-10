@@ -9,6 +9,7 @@ set -u
 
 TOOLS="$(cd "$(dirname "$0")" && pwd)"
 . "$TOOLS/i18n.sh"
+. "$TOOLS/session.sh"
 CONFIG="$HOME/.config/steam_frame_helper/screenshots.json"
 STATE="$HOME/.local/share/steam_frame_helper"
 HEARTBEAT="$STATE/pc_heartbeat"

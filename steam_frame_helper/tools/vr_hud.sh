@@ -9,6 +9,7 @@ set -u
 
 TOOLS="$(cd "$(dirname "$0")" && pwd)"
 . "$TOOLS/i18n.sh"
+. "$TOOLS/session.sh"
 UNIT=sfh-vr-hud.service
 UNIT_FILE="$HOME/.config/systemd/user/$UNIT"
 

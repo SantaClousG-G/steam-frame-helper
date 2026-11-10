@@ -55,8 +55,24 @@ def tool(name):
     return os.path.join(TOOLS_DIR, name)
 
 
+def user_session_env():
+    """Environment for tools that talk to the user's systemd and Steam.
+
+    In the desktop shown inside the headset SFH runs in a nested Plasma session with
+    XDG_RUNTIME_DIR=/run/user/<uid>/nested_plasma and its own D-Bus; `systemctl --user`
+    looks for the user manager there and fails ("could not enable the service"). Point
+    child tools at the real session; GUI launches (xdg-open) keep the nested one."""
+    env = dict(os.environ)
+    real = f"/run/user/{os.getuid()}"
+    if env.get("XDG_RUNTIME_DIR") != real and os.path.exists(f"{real}/systemd/private"):
+        env["XDG_RUNTIME_DIR"] = real
+        if os.path.exists(f"{real}/bus"):
+            env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={real}/bus"
+    return env
+
+
 def run_user(args):
-    return subprocess.run(args, capture_output=True, text=True)
+    return subprocess.run(args, capture_output=True, text=True, env=user_session_env())
 
 
 def run_root(args):
@@ -1415,7 +1431,7 @@ class MainWindow(Gtk.Window):
         try:
             # the background HUD reads the language at start
             subprocess.run(["systemctl", "--user", "try-restart", "sfh-vr-hud.service"],
-                           capture_output=True)
+                           capture_output=True, env=user_session_env())
         except OSError:
             pass
         os.environ["SFH_LANG"] = code
