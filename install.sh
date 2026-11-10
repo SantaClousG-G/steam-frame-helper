@@ -20,8 +20,11 @@ ASSET="steam-frame-helper.tar.gz"
 APP_DIR="$HOME/.config/steam_frame_helper"
 DESKTOP_FILE="$HOME/.local/share/applications/steam_frame_helper.desktop"
 
+# messages follow the system language (Russian for ru*, English otherwise)
+case "${LC_ALL:-${LC_MESSAGES:-${LANG:-}}}" in ru*|RU*) SFH_LANG=ru ;; *) SFH_LANG=en ;; esac
+t() { if [ "$SFH_LANG" = "en" ]; then printf '%s' "$2"; else printf '%s' "$1"; fi; }
 say() { printf '\033[1;36m>>\033[0m %s\n' "$*"; }
-die() { printf '\033[1;31mОшибка:\033[0m %s\n' "$*" >&2; exit 1; }
+die() { printf '\033[1;31m%s:\033[0m %s\n' "$(t "Ошибка" "Error")" "$*" >&2; exit 1; }
 
 if [ "${1:-}" = "--uninstall" ]; then
     systemctl --user disable --now sfh-vr-hud.service sfh-screenshots.service >/dev/null 2>&1 || true
@@ -29,17 +32,17 @@ if [ "${1:-}" = "--uninstall" ]; then
     systemctl --user daemon-reload >/dev/null 2>&1 || true
     rm -rf "$APP_DIR"
     rm -f "$DESKTOP_FILE"
-    say "Steam Frame Helper удалён. Твики системы (регион, Decky и т.п.) остались как были."
+    say "$(t "Steam Frame Helper удалён. Твики системы (регион, Decky и т.п.) остались как были." "Steam Frame Helper removed. System tweaks (region, Decky, etc.) stay as they are.")"
     exit 0
 fi
 
-[ "$(id -u)" -ne 0 ] || die "запускай от обычного пользователя, не через sudo"
+[ "$(id -u)" -ne 0 ] || die "$(t "запускай от обычного пользователя, не через sudo" "run as a regular user, not with sudo")"
 if [ "$(uname -m)" != "aarch64" ]; then
-    say "Внимание: это не Steam Frame (архитектура $(uname -m)). Часть функций работать не будет."
+    say "$(t "Внимание: это не Steam Frame (архитектура $(uname -m)). Часть функций работать не будет." "Warning: this is not a Steam Frame (architecture $(uname -m)). Some features will not work.")"
 fi
-command -v python3 >/dev/null || die "нужен python3"
+command -v python3 >/dev/null || die "$(t "нужен python3" "python3 is required")"
 python3 -c 'import gi; gi.require_version("Gtk", "3.0"); from gi.repository import Gtk' 2>/dev/null \
-    || die "нужен GTK3 для Python (python-gobject) — на SteamOS он есть из коробки"
+    || die "$(t "нужен GTK3 для Python (python-gobject) — на SteamOS он есть из коробки" "GTK3 for Python (python-gobject) is required — SteamOS ships with it")"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -52,14 +55,14 @@ else
     else
         URL="https://github.com/$REPO/releases/latest/download/$ASSET"
     fi
-    say "Скачиваю $URL"
-    curl -fL --progress-bar "$URL" -o "$TMP/$ASSET" || die "не удалось скачать релиз"
+    say "$(t "Скачиваю" "Downloading") $URL"
+    curl -fL --progress-bar "$URL" -o "$TMP/$ASSET" || die "$(t "не удалось скачать релиз" "could not download the release")"
 fi
 
 tar -xzf "$TMP/$ASSET" -C "$TMP"
-[ -f "$TMP/steam_frame_helper/steam_frame_helper.py" ] || die "в архиве нет steam_frame_helper/"
+[ -f "$TMP/steam_frame_helper/steam_frame_helper.py" ] || die "$(t "в архиве нет steam_frame_helper/" "steam_frame_helper/ is missing from the archive")"
 
-say "Устанавливаю в $APP_DIR"
+say "$(t "Устанавливаю в" "Installing to") $APP_DIR"
 mkdir -p "$APP_DIR"
 # copy over the existing install without deleting local-only files
 cp -a "$TMP/steam_frame_helper/." "$APP_DIR/"
@@ -77,6 +80,6 @@ for unit in sfh-vr-hud.service sfh-screenshots.service; do
 done
 
 VERSION="$(cat "$APP_DIR/VERSION" 2>/dev/null || echo "?")"
-say "Готово: Steam Frame Helper $VERSION"
-say "Запуск: меню приложений → Steam Frame Helper (режим рабочего стола)"
-say "        или: python3 $APP_DIR/steam_frame_helper.py"
+say "$(t "Готово" "Done"): Steam Frame Helper $VERSION"
+say "$(t "Запуск: меню приложений → Steam Frame Helper (режим рабочего стола)" "Start: application menu → Steam Frame Helper (Desktop Mode)")"
+say "$(t "        или" "        or"): python3 $APP_DIR/steam_frame_helper.py"

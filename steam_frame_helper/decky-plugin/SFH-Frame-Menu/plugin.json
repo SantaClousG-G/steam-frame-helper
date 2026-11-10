@@ -5,7 +5,7 @@
   "api_version": 2,
   "publish": {
     "tags": ["frame", "menu"],
-    "description": "Добавляет Decky в левое меню и быстрые настройки Steam Frame; переключатель VR HUD и выключение контроллеров.",
+    "description": "Decky in the Steam Frame left menu and Quick Settings (choose where), connection stats switch, turning controllers off.",
     "image": ""
   }
 }

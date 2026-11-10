@@ -21,6 +21,8 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from i18n import T  # noqa: E402
 from decky_open import CDP, CEF_URL  # noqa: E402
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8091
@@ -30,7 +32,7 @@ MAIN_TARGET = "SteamVR"
 JPEG_QUALITY = 65
 
 PAGE = """<!doctype html>
-<html lang="ru"><head><meta charset="utf-8">
+<html lang="__LANG__"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Steam Frame UI</title>
 <style>
@@ -44,9 +46,9 @@ PAGE = """<!doctype html>
 <header>
  <b>Steam Frame UI</b>
  <select id="target"></select>
- <button id="back">Назад</button>
+ <button id="back">__BACK__</button>
  <span id="fps"></span>
- <span id="hint">Клик по картинке = клик в Steam · колесо = прокрутка</span>
+ <span id="hint">__HINT__</span>
 </header>
 <img id="view" alt="">
 <script>
@@ -55,7 +57,7 @@ const sel = document.getElementById("target"), img = document.getElementById("vi
 const fps = document.getElementById("fps");
 const q = (extra) => "t=" + encodeURIComponent(token) + "&target=" + encodeURIComponent(sel.value) + (extra || "");
 let frames = 0;
-setInterval(() => { fps.textContent = frames + " к/с"; frames = 0; }, 1000);
+setInterval(() => { fps.textContent = frames + " __FPS__"; frames = 0; }, 1000);
 async function loop() {
   for (;;) {
     try {
@@ -68,7 +70,7 @@ async function loop() {
       frames++;
       await new Promise(res => setTimeout(res, 150));
     } catch (e) {
-      fps.textContent = "нет связи";
+      fps.textContent = "__NOLINK__";
       await new Promise(res => setTimeout(res, 1500));
     }
   }
@@ -88,6 +90,12 @@ fetch("/targets?t=" + encodeURIComponent(token)).then(r => r.json()).then(list =
 });
 </script></body></html>
 """
+PAGE = (PAGE.replace("__LANG__", T("ru", "en"))
+        .replace("__BACK__", T("Назад", "Back"))
+        .replace("__HINT__", T("Клик по картинке = клик в Steam · колесо = прокрутка",
+                               "Click the image = click in Steam · wheel = scroll"))
+        .replace("__FPS__", T("к/с", "fps"))
+        .replace("__NOLINK__", T("нет связи", "no connection")))
 
 
 def load_token():
@@ -129,11 +137,11 @@ class Sessions:
 
     def _connect(self, title):
         if not title.startswith(MAIN_TARGET):
-            raise LookupError(f"Недопустимое окно: {title}")
+            raise LookupError(T("Недопустимое окно: {title}", "Invalid window: {title}").format(title=title))
         for p in cef_pages():
             if p["title"] == title:
                 return CDP(p["webSocketDebuggerUrl"])
-        raise LookupError(f"Окно не найдено: {title}")
+        raise LookupError(T("Окно не найдено: {title}", "Window not found: {title}").format(title=title))
 
     @staticmethod
     def _call(cdp, method, params):

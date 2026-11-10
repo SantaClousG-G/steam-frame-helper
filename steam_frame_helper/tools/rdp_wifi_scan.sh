@@ -8,6 +8,9 @@
 
 set -u
 
+TOOLS="$(cd "$(dirname "$0")" && pwd)"
+. "$TOOLS/i18n.sh"
+
 RULE=/etc/polkit-1/rules.d/50-sfh-rdp-wifi-scan.rules
 TARGET_USER="${SUDO_USER:-${PKEXEC_UID:+$(id -nu "$PKEXEC_UID")}}"
 TARGET_USER="${TARGET_USER:-steamos}"
@@ -16,10 +19,10 @@ case "${1:-status}" in
     status)
         if [ -f "$RULE" ]; then
             echo "installed=1"
-            echo "info=Сканирование Wi-Fi в RDP без запроса пароля (только это действие)"
+            echo "info=$(t "Сканирование Wi-Fi в RDP без запроса пароля (только это действие)" "Wi-Fi scanning in RDP without a password prompt (this action only)")"
         else
             echo "installed=0"
-            echo "info=В RDP виджет сети Plasma каждые ~10 с запрашивает пароль для сканирования Wi-Fi"
+            echo "info=$(t "В RDP виджет сети Plasma каждые ~10 с запрашивает пароль для сканирования Wi-Fi" "In RDP, the Plasma network widget asks for a password every ~10 s to scan Wi-Fi")"
         fi
         ;;
     install)

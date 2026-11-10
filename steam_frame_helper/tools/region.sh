@@ -5,6 +5,9 @@
 
 set -u
 
+TOOLS="$(cd "$(dirname "$0")" && pwd)"
+. "$TOOLS/i18n.sh"
+
 CONF=/etc/conf.d/wireless-regdom
 SUPPORTED="DE PL FI NL FR GB US RU"
 
@@ -31,10 +34,10 @@ case "${1:-status}" in
         echo "configured=$conf"
         if [ -n "$conf" ]; then
             echo "installed=1"
-            echo "info=Установлен: $conf  ·  сейчас у Wi-Fi: ${cur:-?}"
+            echo "info=$(t "Установлен: $conf  ·  сейчас у Wi-Fi: ${cur:-?}" "Set: $conf  ·  Wi-Fi currently uses: ${cur:-?}")"
         else
             echo "installed=0"
-            echo "info=Не установлен  ·  сейчас у Wi-Fi: ${cur:-?}"
+            echo "info=$(t "Не установлен  ·  сейчас у Wi-Fi: ${cur:-?}" "Not set  ·  Wi-Fi currently uses: ${cur:-?}")"
         fi
         ;;
     install)

@@ -22,6 +22,9 @@ import sys
 import urllib.request
 import zipfile
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from i18n import T  # noqa: E402
+
 USER = os.environ.get("SUDO_USER") or pwd.getpwuid(os.getuid()).pw_name
 HOME = pwd.getpwnam(USER).pw_dir
 HOMEBREW = os.path.join(HOME, "homebrew")
@@ -99,7 +102,7 @@ def plugin_by_folder(folder):
     for p in installed():
         if p["folder"] == folder:
             return p
-    sys.exit(f"Плагин не найден: {folder}")
+    sys.exit(T("Плагин не найден: {folder}", "Plugin not found: {folder}").format(folder=folder))
 
 
 def fetch_store(settings):
@@ -163,7 +166,7 @@ def download(url, sha256):
         data = r.read()
     digest = hashlib.sha256(data).hexdigest()
     if sha256 and digest != sha256:
-        sys.exit(f"SHA-256 не совпал для {url}")
+        sys.exit(T("SHA-256 не совпал для {url}", "SHA-256 mismatch for {url}").format(url=url))
     return data
 
 
@@ -185,7 +188,8 @@ def install_zip(data, old_folder):
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         tops = {n.split("/", 1)[0] for n in z.namelist() if n.count("/") == 1 and n.endswith("/plugin.json")}
         if len(tops) != 1:
-            sys.exit("В архиве плагина нет единственного plugin.json")
+            sys.exit(T("В архиве плагина нет единственного plugin.json",
+                     "The plugin archive must contain exactly one plugin.json"))
         new_folder = tops.pop()
         shutil.rmtree(os.path.join(PLUGINS, old_folder), ignore_errors=True)
         z.extractall(PLUGINS)
@@ -221,17 +225,18 @@ def cmd_toggle(folder, disable):
         save_settings(settings)
 
     with_service_stopped(change)
-    print(f"{p['name']}: {'отключён' if disable else 'включён'}")
+    state = T("отключён", "turned off") if disable else T("включён", "turned on")
+    print(f"{p['name']}: {state}")
 
 
 def cmd_update(folder):
     p = plugin_by_folder(folder)
     version = latest_versions(load_settings()).get(p["name"])
     if not version:
-        sys.exit(f"{p['name']} не найден в магазине")
+        sys.exit(T("{name} не найден в магазине", "{name} not found in the Store").format(name=p["name"]))
     data = download(version["artifact"], version.get("hash", ""))
     with_service_stopped(lambda: install_zip(data, folder))
-    print(f"{p['name']}: обновлён до {version['name']}")
+    print(T("{name}: обновлён до {ver}", "{name}: updated to {ver}").format(name=p["name"], ver=version["name"]))
 
 
 def cmd_remove(folder):
@@ -246,7 +251,7 @@ def cmd_remove(folder):
         save_settings(settings)
 
     with_service_stopped(change)
-    print(f"{p['name']}: удалён")
+    print(f"{p['name']}: " + T("удалён", "removed"))
 
 
 def main():

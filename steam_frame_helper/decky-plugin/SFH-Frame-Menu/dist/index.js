@@ -21,6 +21,19 @@ const routerHook = api.routerHook;
 
 const React = window.SP_REACT;
 const h = React.createElement;
+
+// UI language follows the Steam client language: Russian for "russian", English otherwise.
+function steamLanguage() {
+  try {
+    const loc = window.LocalizationManager?.m_rgLocalesToUse?.[0];
+    if (loc) return String(loc);
+  } catch (e) {
+    // fall through
+  }
+  return navigator.language || "en";
+}
+const IS_RU = steamLanguage().toLowerCase().startsWith("ru");
+const T = (ru, en) => (IS_RU ? ru : en);
 const ROUTE = "/sfh-decky";
 const MENU_MARKER = "frame-menu-steam-main-menu-items";
 const DECKY_TAB_ID = 999;
@@ -46,7 +59,7 @@ function deckyTab() {
 function DeckyPanel() {
   const tab = React.useMemo(deckyTab, []);
   if (!tab) {
-    return h("div", { style: { padding: "32px" } }, "Decky ещё не загрузился");
+    return h("div", { style: { padding: "32px" } }, T("Decky ещё не загрузился", "Decky has not loaded yet"));
   }
   return h("div", {
     style: { padding: "24px 32px", height: "100%", overflowY: "auto", boxSizing: "border-box" },
@@ -314,13 +327,13 @@ function HudPanel() {
     const s = window.__sfhHud = window.__sfhHud || { toggle: 0 };
     s.toggle = (s.toggle || 0) + 1;
   };
-  return h(DFL.PanelSection, { title: "Статистика соединения" },
+  return h(DFL.PanelSection, { title: T("Статистика соединения", "Connection stats") },
     h(DFL.PanelSectionRow, null,
       h(DFL.ToggleField, {
-        label: "Показывать в шлеме",
+        label: T("Показывать в шлеме", "Show in headset"),
         description: state.alive
-          ? "Пинг, потери и трафик до ПК внизу поля зрения"
-          : "Не запущена: включите в SFH (Инструменты → Сеть)",
+          ? T("Пинг, потери и трафик до ПК внизу поля зрения", "Ping, packet loss and traffic to the PC at the bottom of your view")
+          : T("Не запущена: включите в SFH (Инструменты → Сеть)", "Not running: turn it on in SFH (Tools → Network)"),
         checked: state.visible,
         disabled: !state.alive,
         onChange: toggle,
@@ -446,8 +459,8 @@ function ControllersPanel() {
     return () => clearInterval(timer);
   }, [p]);
   if (!p) {
-    return h(DFL.PanelSection, { title: "Выключить контроллеры" },
-      h(DFL.PanelSectionRow, null, "Функция не найдена в этой версии Steam"));
+    return h(DFL.PanelSection, { title: T("Выключить контроллеры", "Turn off controllers") },
+      h(DFL.PanelSectionRow, null, T("Функция не найдена в этой версии Steam", "Not available in this Steam version")));
   }
   const single = p.sender && p.proto;
   const byRole = role => list.find(c => c.role === role);
@@ -457,7 +470,7 @@ function ControllersPanel() {
     disabled: !single || !c,
     onClick: () => c && disconnectOne(p, c.serial_number),
   }, controllerIcon(Icon, isLeft));
-  return h(DFL.PanelSection, { title: "Выключить контроллеры" },
+  return h(DFL.PanelSection, { title: T("Выключить контроллеры", "Turn off controllers") },
     h("style", null, ICON_CSS),
     h(DFL.PanelSectionRow, null,
       h(DFL.Focusable, {
@@ -473,14 +486,93 @@ function ControllersPanel() {
         one(right, false))));
 }
 
+// ---------- where Decky is shown ----------
+//
+// The user picks where the Decky entry appears: the Frame left menu, the Quick Settings
+// popup, or both. Stored in Steam's localStorage (survives restarts) and applied at
+// once; Steam redraws the menu / popup the next time it opens. Steam Frame Helper sets
+// it through window.__sfhPlacement (tools/decky_placement.py, over CDP).
+
+const PLACEMENT_KEY = "sfh-frame-menu.placement";
+
+function loadPlacement() {
+  try {
+    const v = JSON.parse(localStorage.getItem(PLACEMENT_KEY) || "{}");
+    return { menu: v.menu !== false, qam: v.qam !== false };
+  } catch (e) {
+    return { menu: true, qam: true };
+  }
+}
+
+const placement = {
+  value: loadPlacement(),
+  unpatchMenu: null,
+  unpatchQam: null,
+  listeners: new Set(),
+
+  apply() {
+    if (this.value.menu && !this.unpatchMenu) this.unpatchMenu = patchFrameMenu();
+    if (!this.value.menu && this.unpatchMenu) { this.unpatchMenu(); this.unpatchMenu = null; }
+    if (this.value.qam && !this.unpatchQam) this.unpatchQam = patchQuickSettingsWithRetry();
+    if (!this.value.qam && this.unpatchQam) { this.unpatchQam(); this.unpatchQam = null; }
+  },
+  set(next) {
+    this.value = { menu: next.menu !== false, qam: next.qam !== false };
+    try {
+      localStorage.setItem(PLACEMENT_KEY, JSON.stringify(this.value));
+    } catch (e) {
+      console.error("[SFH Frame Menu] could not save placement", e);
+    }
+    this.apply();
+    this.listeners.forEach(fn => fn(this.value));
+    return this.value;
+  },
+  removeAll() {
+    this.unpatchQam?.();
+    this.unpatchMenu?.();
+    this.unpatchQam = this.unpatchMenu = null;
+  },
+};
+
+function PlacementPanel() {
+  const [value, setValue] = React.useState(placement.value);
+  React.useEffect(() => {
+    placement.listeners.add(setValue);
+    return () => placement.listeners.delete(setValue);
+  }, []);
+  // At least one place stays on: otherwise Decky (and this switch) can't be reached
+  // from the headset any more (only from Steam Frame Helper on the desktop).
+  const row = (key, label, description) => h(DFL.PanelSectionRow, null,
+    h(DFL.ToggleField, {
+      label,
+      description,
+      checked: value[key],
+      disabled: value[key] && !value[key === "menu" ? "qam" : "menu"],
+      onChange: checked => placement.set({ ...value, [key]: checked }),
+    }));
+  return h(DFL.PanelSection, { title: T("Где показывать Decky", "Where to show Decky") },
+    row("menu", T("Левое меню", "Left menu"),
+      T("Пункт «Decky» в меню слева, рядом с настройками",
+        "A “Decky” item in the menu on the left, next to Settings")),
+    row("qam", T("Быстрые настройки", "Quick Settings"),
+      T("Вкладка Decky в окне быстрых настроек на панели",
+        "A Decky tab in the Quick Settings popup on the bar")),
+    h(DFL.PanelSectionRow, null,
+      h("div", { style: { fontSize: "12px", opacity: 0.6 } },
+        T("Меню обновится при следующем открытии.", "The menu updates the next time it opens."))));
+}
+
 // ---------- plugin ----------
 
 export default DFL.definePlugin(() => {
   // decky_open.py checks this flag so it does not register a second route.
   routerHook.addRoute(ROUTE, DeckyPanel, { exact: true });
   window.__sfhDeckyRoute = true;
-  const unpatchMenu = patchFrameMenu();
-  const unpatchQuickSettings = patchQuickSettingsWithRetry();
+  window.__sfhPlacement = {
+    get: () => placement.value,
+    set: next => placement.set(next),
+  };
+  placement.apply();
 
   return {
     name: manifest.name,
@@ -488,12 +580,11 @@ export default DFL.definePlugin(() => {
     content: h("div", null,
       h(HudPanel),
       h(ControllersPanel),
-      h("div", { style: { padding: "8px 16px", opacity: 0.7 } },
-        "Decky добавлен в левое меню и в быстрые настройки Steam Frame.")),
+      h(PlacementPanel)),
     icon: h(DeckyIcon),
     onDismount() {
-      unpatchQuickSettings();
-      unpatchMenu();
+      placement.removeAll();
+      delete window.__sfhPlacement;
       routerHook.removeRoute(ROUTE);
       window.__sfhDeckyRoute = false;
     },

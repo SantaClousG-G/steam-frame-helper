@@ -8,6 +8,7 @@ set -u
 UNIT=sfh-ui-stream
 PORT=8091
 TOOLS="$(cd "$(dirname "$0")" && pwd)"
+. "$TOOLS/i18n.sh"
 TOKEN_FILE="$(dirname "$TOOLS")/ui_stream.token"
 
 ip_addr() {
@@ -18,10 +19,11 @@ case "${1:-status}" in
     status)
         if systemctl --user is-active --quiet "$UNIT"; then
             echo "installed=1"
-            echo "info=Открой на ПК: http://$(ip_addr):$PORT/?t=$(cat "$TOKEN_FILE" 2>/dev/null)"
+            url="http://$(ip_addr):$PORT/?t=$(cat "$TOKEN_FILE" 2>/dev/null)"
+            echo "info=$(t "Открой на ПК: $url" "Open on the PC: $url")"
         else
             echo "installed=0"
-            echo "info=Выключено (интерфейс Steam в браузере на ПК, игры не видны)"
+            echo "info=$(t "Выключено (интерфейс Steam в браузере на ПК, игры не видны)" "Off (Steam interface in a browser on the PC, games are not shown)")"
         fi
         ;;
     install)

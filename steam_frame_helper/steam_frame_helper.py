@@ -4,6 +4,7 @@
 import json
 import os
 import subprocess
+import sys
 import threading
 
 import gi
@@ -11,6 +12,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk, Pango  # noqa: E402
+from i18n import LANG, LANGUAGES, T, _  # noqa: E402
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 TOOLS_DIR = os.path.join(APP_DIR, "tools")
@@ -21,14 +23,14 @@ except OSError:
     VERSION = "dev"
 
 REGIONS = [
-    ("DE", "Германия"),
-    ("PL", "Польша"),
-    ("FI", "Финляндия"),
-    ("NL", "Нидерланды"),
-    ("FR", "Франция"),
-    ("GB", "Великобритания"),
-    ("US", "США"),
-    ("RU", "Россия"),
+    ("DE", _("Германия")),
+    ("PL", _("Польша")),
+    ("FI", _("Финляндия")),
+    ("NL", _("Нидерланды")),
+    ("FR", _("Франция")),
+    ("GB", _("Великобритания")),
+    ("US", _("США")),
+    ("RU", _("Россия")),
 ]
 
 CSS = b"""
@@ -67,7 +69,7 @@ def run_root(args):
         if prefix[0] == "sudo" and res.returncode != 0 and "password" in res.stderr:
             continue
         return res
-    return subprocess.CompletedProcess(args, 1, "", "Нет прав root (sudo/pkexec)")
+    return subprocess.CompletedProcess(args, 1, "", _("Нет прав root (sudo/pkexec)"))
 
 
 def parse_kv(text):
@@ -85,7 +87,7 @@ def parse_tsv(text, columns):
 
 def error_text(res):
     text = (res.stderr or res.stdout or "").strip()
-    return text.splitlines()[-1] if text else f"код {res.returncode}"
+    return text.splitlines()[-1] if text else _("код {code}").format(code=res.returncode)
 
 
 class Runner:
@@ -105,9 +107,10 @@ class Runner:
 
         def done(res):
             if res.returncode == 0:
-                self.log(message + " — готово")
+                self.log(_("{message} — готово").format(message=message))
             else:
-                self.log(f"{message} — ошибка: {error_text(res)}")
+                self.log(_("{message} — ошибка: {error}").format(message=message,
+                                                          error=error_text(res)))
             for w in widgets:
                 w.set_sensitive(True)
             if on_done:
@@ -227,8 +230,8 @@ class StatusTool(Gtk.Box):
     and `install` / `remove` change the state (run as root).
     """
 
-    def __init__(self, runner, title, script, install_label="Установить",
-                 remove_label="Удалить", status_as_root=False, reinstall=False,
+    def __init__(self, runner, title, script, install_label=_("Установить"),
+                 remove_label=_("Удалить"), status_as_root=False, reinstall=False,
                  repair=False, actions_as_root=True):
         super().__init__(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         self.runner = runner
@@ -257,8 +260,8 @@ class StatusTool(Gtk.Box):
 
         self.btn_repair = None
         if self.repair:
-            self.btn_repair = Gtk.Button(label="Починить")
-            self.btn_repair.connect("clicked", lambda _b: self.act("repair", "Починить"))
+            self.btn_repair = Gtk.Button(label=_("Починить"))
+            self.btn_repair.connect("clicked", lambda _b: self.act("repair", _("Починить")))
             self.pack_start(self.btn_repair, False, False, 0)
 
         self.btn_remove = Gtk.Button(label=remove_label)
@@ -315,14 +318,14 @@ class VrHudTool(StatusTool):
     service; the extra button shows/hides it."""
 
     def __init__(self, runner):
-        super().__init__(runner, "Статистика соединения с ПК (в шлеме)", "vr_hud.sh",
-                         install_label="Включить", remove_label="Выключить",
+        super().__init__(runner, _("Статистика соединения с ПК (в шлеме)"), "vr_hud.sh",
+                         install_label=_("Включить"), remove_label=_("Выключить"),
                          actions_as_root=False)
 
     def build_extra(self):
-        btn = Gtk.Button(label="Показать / скрыть")
+        btn = Gtk.Button(label=_("Показать / скрыть"))
         btn.connect("clicked", lambda _b: self.runner.run(
-            run_user, [self.script, "toggle"], f"{self.title}: показать / скрыть",
+            run_user, [self.script, "toggle"], f"{self.title}: {_('показать / скрыть')}",
             widgets=self.widgets()))
         return btn
 
@@ -334,13 +337,13 @@ class UiStreamTool(StatusTool):
     """Steam UI live view in a PC browser; the subtitle carries the URL."""
 
     def __init__(self, runner):
-        super().__init__(runner, "Интерфейс Steam в браузере на ПК", "ui_stream.sh",
-                         install_label="Включить", remove_label="Выключить",
+        super().__init__(runner, _("Интерфейс Steam в браузере на ПК"), "ui_stream.sh",
+                         install_label=_("Включить"), remove_label=_("Выключить"),
                          actions_as_root=False)
         self.sub.set_selectable(True)
 
     def build_extra(self):
-        btn = Gtk.Button(label="Копировать ссылку")
+        btn = Gtk.Button(label=_("Копировать ссылку"))
         btn.connect("clicked", self.on_copy)
         return btn
 
@@ -349,7 +352,7 @@ class UiStreamTool(StatusTool):
         url = text[text.find("http"):] if "http" in text else ""
         if url:
             Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(url, -1)
-            self.runner.log(f"Скопировано: {url}")
+            self.runner.log(_("Скопировано: {url}").format(url=url))
 
     def on_status(self, info):
         self.extra.set_sensitive(info.get("installed") == "1")
@@ -360,26 +363,84 @@ class DeckyTool(StatusTool):
     """Decky Loader; Frame has no QAM in VR, so the panel opens as a Steam page."""
 
     def __init__(self, runner):
-        super().__init__(runner, "Decky Loader (ARM64, экспериментально)", "decky.sh",
-                         install_label="Установить / обновить",
+        super().__init__(runner, _("Decky Loader (ARM64, экспериментально)"), "decky.sh",
+                         install_label=_("Установить / обновить"),
                          status_as_root=True, reinstall=True, repair=True)
 
     def build_extra(self):
-        btn = Gtk.Button(label="Открыть в шлеме")
+        btn = Gtk.Button(label=_("Открыть в шлеме"))
         btn.connect("clicked", self.on_open)
         return btn
 
     def on_open(self, btn):
         self.runner.run(run_user, [tool("decky_open.py"), "panel"],
-                        "Открытие панели Decky в шлеме", widgets=[btn])
+                        _("Открытие панели Decky в шлеме"), widgets=[btn])
 
     def on_status(self, info):
         self.extra.set_sensitive(info.get("installed") == "1")
 
 
+class DeckyPlacementRow(Gtk.Box):
+    """Where the SFH Frame Menu plugin shows Decky in the headset: left menu and/or Quick
+    Settings (tools/decky_placement.py talks to the plugin over CDP). At least one stays on."""
+
+    def __init__(self, runner):
+        super().__init__(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        self.runner = runner
+        self.get_style_context().add_class("tool-row")
+        text, self.sub = title_block(_("Где показывать Decky в шлеме"))
+        self.pack_start(text, True, True, 0)
+        self.checks = {}
+        for key, label in (("menu", _("Левое меню")), ("qam", _("Быстрые настройки"))):
+            chk = Gtk.CheckButton(label=label)
+            chk.connect("toggled", self.on_toggled)
+            chk.set_sensitive(False)
+            self.checks[key] = chk
+            self.pack_start(chk, False, False, 0)
+        self.updating = False
+        self.refresh()
+
+    def show_state(self, res):
+        info = parse_kv(res.stdout)
+        ok = "menu" in info and "qam" in info
+        self.updating = True
+        for key, chk in self.checks.items():
+            chk.set_sensitive(ok)
+            if ok:
+                chk.set_active(info[key] == "1")
+        self.updating = False
+        if ok:
+            self.sub.set_text(_("Меню в шлеме обновится при следующем открытии"))
+        else:
+            self.sub.set_text(_("Нужен запущенный Steam и плагин SFH Frame Menu в Decky"))
+        return False
+
+    def refresh(self):
+        threading.Thread(
+            target=lambda: GLib.idle_add(
+                self.show_state, run_user([tool("decky_placement.py"), "get"])),
+            daemon=True).start()
+
+    def on_toggled(self, chk):
+        if self.updating:
+            return
+        menu, qam = self.checks["menu"].get_active(), self.checks["qam"].get_active()
+        if not menu and not qam:
+            # keep at least one place, otherwise Decky can't be opened in the headset
+            self.updating = True
+            chk.set_active(True)
+            self.updating = False
+            self.runner.log(_("Decky должен остаться хотя бы в одном месте"))
+            return
+        self.runner.run(run_user, [tool("decky_placement.py"), "set",
+                                   "1" if menu else "0", "1" if qam else "0"],
+                        _("Decky в шлеме: место показа"), on_done=self.show_state,
+                        widgets=list(self.checks.values()))
+
+
 class RegionTool(StatusTool):
     def __init__(self, runner):
-        super().__init__(runner, "Поменять регион Wi-Fi", "region.sh")
+        super().__init__(runner, _("Поменять регион Wi-Fi"), "region.sh")
 
     def build_extra(self):
         combo = Gtk.ComboBoxText()
@@ -398,15 +459,15 @@ class RegionTool(StatusTool):
 
 class QuickActions(Gtk.Box):
     ACTIONS = [
-        ("Перезапустить Steam", "restart-steam", False, None),
-        ("Перезагрузить", "reboot", True, "Перезагрузить Steam Frame?"),
+        (_("Перезапустить Steam"), "restart-steam", False, None),
+        (_("Перезагрузить"), "reboot", True, _("Перезагрузить Steam Frame?")),
     ]
 
     def __init__(self, runner, window):
         super().__init__(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         self.get_style_context().add_class("tool-row")
-        text, sub = title_block("Быстрые действия")
-        sub.set_text("Перезапуск Steam, перезагрузка")
+        text, sub = title_block(_("Быстрые действия"))
+        sub.set_text(_("Перезапуск Steam, перезагрузка"))
         self.pack_start(text, True, True, 0)
         for label, cmd, root, question in self.ACTIONS:
             btn = Gtk.Button(label=label)
@@ -431,10 +492,10 @@ class GamesPage:
         self.widget, self.box = page()
 
         top = row_box()
-        text, sub = title_block("Игры Steam")
-        sub.set_text("Бэкапы сохранений: ~/steam_frame_helper_backups")
+        text, sub = title_block(_("Игры Steam"))
+        sub.set_text(_("Бэкапы сохранений: ~/steam_frame_helper_backups"))
         top.pack_start(text, True, True, 0)
-        refresh = Gtk.Button(label="Обновить")
+        refresh = Gtk.Button(label=_("Обновить"))
         refresh.connect("clicked", lambda _b: self.refresh())
         top.pack_start(refresh, False, False, 0)
         self.box.pack_start(top, False, False, 0)
@@ -449,7 +510,7 @@ class GamesPage:
                 child.destroy()
             games = parse_tsv(res.stdout, 5)
             if not games:
-                self.list.pack_start(section("Игры не найдены"), False, False, 0)
+                self.list.pack_start(section(_("Игры не найдены")), False, False, 0)
             for appid, name, kind, shader, backups in games:
                 self.list.pack_start(self.game_row(appid, name, kind, shader,
                                                    int(backups)), False, False, 0)
@@ -471,8 +532,9 @@ class GamesPage:
         box = row_box()
         text, sub = title_block(name)
         has_prefix = kind in ("proton", "android")
-        sub.set_text(f"AppID {appid}  ·  {self.KINDS.get(kind, kind)}  ·  "
-                     f"шейдеры: {shader}  ·  бэкапов: {backups}")
+        sub.set_text(_("AppID {appid}  ·  {kind}  ·  шейдеры: {shader}  ·  бэкапов: {backups}")
+                     .format(appid=appid, kind=self.KINDS.get(kind, kind),
+                             shader=shader, backups=backups))
         box.pack_start(text, True, True, 0)
 
         buttons = []
@@ -486,10 +548,10 @@ class GamesPage:
             box.pack_start(btn, False, False, 0)
             buttons.append(btn)
 
-        add("Бэкап", self.backup)
-        add("Восстановить", self.restore, sensitive=backups > 0)
-        add("Очистить шейдеры", self.clear_shaders, sensitive=shader != "-")
-        add("Сбросить префикс", self.reset_prefix, sensitive=has_prefix, danger=True)
+        add(_("Бэкап"), self.backup)
+        add(_("Восстановить"), self.restore, sensitive=backups > 0)
+        add(_("Очистить шейдеры"), self.clear_shaders, sensitive=shader != "-")
+        add(_("Сбросить префикс"), self.reset_prefix, sensitive=has_prefix, danger=True)
         return box
 
     def _run(self, args, message, buttons):
@@ -497,20 +559,20 @@ class GamesPage:
                         on_done=lambda _r: self.refresh(), widgets=buttons)
 
     def backup(self, appid, name, buttons):
-        self._run(["backup", appid], f"Бэкап сохранений: {name}", buttons)
+        self._run(["backup", appid], _("Бэкап сохранений: {name}").format(name=name), buttons)
 
     def restore(self, appid, name, buttons):
         files = run_user([self.script, "backups", appid]).stdout.split()
         if not files:
             return
-        dlg = Gtk.Dialog(title=f"Восстановить: {name}", transient_for=self.window, modal=True)
-        dlg.add_buttons("Отмена", Gtk.ResponseType.CANCEL, "Восстановить", Gtk.ResponseType.OK)
+        dlg = Gtk.Dialog(title=_("Восстановить: {name}").format(name=name), transient_for=self.window, modal=True)
+        dlg.add_buttons(_("Отмена"), Gtk.ResponseType.CANCEL, _("Восстановить"), Gtk.ResponseType.OK)
         area = dlg.get_content_area()
         area.set_spacing(8)
         area.set_margin_start(12)
         area.set_margin_end(12)
         area.pack_start(Gtk.Label(
-            label="Текущие сохранения будут перезаписаны. Игра должна быть закрыта.",
+            label=_("Текущие сохранения будут перезаписаны. Игра должна быть закрыта."),
             xalign=0), False, False, 0)
         combo = Gtk.ComboBoxText()
         for f in files:
@@ -522,19 +584,19 @@ class GamesPage:
         chosen = combo.get_active_id()
         dlg.destroy()
         if ok and chosen:
-            self._run(["restore", appid, chosen], f"Восстановление: {name}", buttons)
+            self._run(["restore", appid, chosen], _("Восстановление: {name}").format(name=name), buttons)
 
     def clear_shaders(self, appid, name, buttons):
-        if confirm(self.window, f"Очистить шейдер-кэш «{name}»?",
-                   "Кэш соберётся заново при следующем запуске, первые минуты игра может подтормаживать."):
-            self._run(["clear-shaders", appid], f"Очистка шейдеров: {name}", buttons)
+        if confirm(self.window, _("Очистить шейдер-кэш «{name}»?").format(name=name),
+                   _("Кэш соберётся заново при следующем запуске, первые минуты игра может подтормаживать.")):
+            self._run(["clear-shaders", appid], _("Очистка шейдеров: {name}").format(name=name), buttons)
 
     def reset_prefix(self, appid, name, buttons):
-        if confirm(self.window, f"Сбросить данные «{name}»?",
-                   "Удаляется префикс Proton или данные Android-приложения. Перед удалением "
-                   "будет сделан бэкап сохранений. Настройки игры и установленные в префикс "
-                   "библиотеки пропадут, Steam создаст всё заново при запуске."):
-            self._run(["reset-prefix", appid], f"Сброс префикса: {name}", buttons)
+        if confirm(self.window, _("Сбросить данные «{name}»?").format(name=name),
+                   _("Удаляется префикс Proton или данные Android-приложения. Перед удалением "
+                     "будет сделан бэкап сохранений. Настройки игры и установленные в префикс "
+                     "библиотеки пропадут, Steam создаст всё заново при запуске.")):
+            self._run(["reset-prefix", appid], _("Сброс префикса: {name}").format(name=name), buttons)
 
 
 # ---------- decky plugins tab ----------
@@ -551,18 +613,19 @@ class PluginsPage:
         loader = Section("plugins.loader", "Decky Loader")
         outer.pack_start(loader, False, False, 0)
         loader.add_row(DeckyTool(runner))
-        installed = Section("plugins.installed", "Установленные плагины")
+        loader.add_row(DeckyPlacementRow(runner))
+        installed = Section("plugins.installed", _("Установленные плагины"))
         outer.pack_start(installed, False, False, 0)
         self.box = installed.body
 
         top = row_box()
-        text, self.summary = title_block("Плагины Decky")
+        text, self.summary = title_block(_("Плагины Decky"))
         self.summary.set_text("~/homebrew/plugins")
         top.pack_start(text, True, True, 0)
         for label, handler in (
-            ("Обновить список", lambda _b: self.refresh()),
-            ("Магазин в шлеме", lambda b: self.open_in_headset(b, "store")),
-            ("Панель в шлеме", lambda b: self.open_in_headset(b, "panel")),
+            (_("Обновить список"), lambda _b: self.refresh()),
+            (_("Магазин в шлеме"), lambda b: self.open_in_headset(b, "store")),
+            (_("Панель в шлеме"), lambda b: self.open_in_headset(b, "panel")),
         ):
             btn = Gtk.Button(label=label)
             btn.connect("clicked", handler)
@@ -575,19 +638,19 @@ class PluginsPage:
 
     def open_in_headset(self, btn, target):
         self.runner.run(run_user, [tool("decky_open.py"), target],
-                        "Открытие Decky в шлеме", widgets=[btn])
+                        _("Открытие Decky в шлеме"), widgets=[btn])
 
     def refresh(self):
-        self.summary.set_text("Загрузка списка и проверка обновлений…")
+        self.summary.set_text(_("Загрузка списка и проверка обновлений…"))
 
         def done(res):
             for child in self.list.get_children():
                 child.destroy()
             plugins = parse_tsv(res.stdout, 5)
             updates = sum(1 for p in plugins if p[4])
-            self.summary.set_text(f"Установлено: {len(plugins)}  ·  обновлений: {updates}")
+            self.summary.set_text(_("Установлено: {n}  ·  обновлений: {u}").format(n=len(plugins), u=updates))
             if not plugins:
-                self.list.pack_start(section("Плагины не установлены"), False, False, 0)
+                self.list.pack_start(section(_("Плагины не установлены")), False, False, 0)
             for folder, name, version, disabled, latest in plugins:
                 self.list.pack_start(self.plugin_row(folder, name, version,
                                                      disabled == "1", latest), False, False, 0)
@@ -607,9 +670,10 @@ class PluginsPage:
         box.pack_start(mark, False, False, 0)
 
         text, sub = title_block(name)
-        state = "отключён" if disabled else "включён"
-        update = f"  ·  доступно обновление: {latest}" if latest else ""
-        sub.set_text(f"версия {version}  ·  {state}{update}")
+        state = _("отключён") if disabled else _("включён")
+        update = _("  ·  доступно обновление: {latest}").format(latest=latest) if latest else ""
+        sub.set_text(_("версия {version}  ·  {state}{update}").format(
+            version=version, state=state, update=update))
         box.pack_start(text, True, True, 0)
 
         buttons = []
@@ -631,13 +695,14 @@ class PluginsPage:
             buttons.append(btn)
 
         if disabled:
-            add("Включить", ["enable", folder], f"Включение {name}")
+            add(_("Включить"), ["enable", folder], _("Включение {name}").format(name=name))
         else:
-            add("Отключить", ["disable", folder], f"Отключение {name}")
-        add("Обновить", ["update", folder], f"Обновление {name}", sensitive=bool(latest))
-        add("Удалить", ["remove", folder], f"Удаление {name}", danger=True,
-            question=(f"Удалить плагин «{name}»?",
-                      "Папка плагина будет удалена. Decky перезапустится."))
+            add(_("Отключить"), ["disable", folder], _("Отключение {name}").format(name=name))
+        add(T("Обновить", "Update"), ["update", folder], _("Обновление {name}").format(name=name),
+            sensitive=bool(latest))
+        add(_("Удалить"), ["remove", folder], _("Удаление {name}").format(name=name), danger=True,
+            question=(_("Удалить плагин «{name}»?").format(name=name),
+                      _("Папка плагина будет удалена. Decky перезапустится.")))
         return box
 
 
@@ -665,20 +730,20 @@ class LogViewer(Gtk.Window):
     MAX_BYTES = 2 * 1024 * 1024
 
     def __init__(self, parent, title, path, open_path):
-        super().__init__(title=f"Лог: {title}")
+        super().__init__(title=_("Лог: {title}").format(title=title))
         self.path = path
         self.set_transient_for(parent)
         self.set_default_size(1000, 640)
 
         headerbar = Gtk.HeaderBar()
         headerbar.set_show_close_button(True)
-        headerbar.set_title(f"Лог: {title}")
+        headerbar.set_title(_("Лог: {title}").format(title=title))
         headerbar.set_subtitle(path)
         self.set_titlebar(headerbar)
-        btn_reload = Gtk.Button(label="Обновить")
+        btn_reload = Gtk.Button(label=_("Обновить"))
         btn_reload.connect("clicked", lambda _b: self.load())
         headerbar.pack_start(btn_reload)
-        btn_dir = Gtk.Button(label="Папка логов")
+        btn_dir = Gtk.Button(label=_("Папка логов"))
         btn_dir.connect("clicked", lambda _b: open_path(os.path.dirname(path)))
         headerbar.pack_start(btn_dir)
 
@@ -701,10 +766,10 @@ class LogViewer(Gtk.Window):
                 data = f.read()
             text = strip_ansi(data.decode("utf-8", "replace"))
             if size > self.MAX_BYTES:
-                text = f"… показаны последние {self.MAX_BYTES // 1024 // 1024} МБ из " \
-                       f"{size // 1024 // 1024} МБ …\n" + text
+                text = _("… показаны последние {shown} МБ из {total} МБ …").format(
+                    shown=self.MAX_BYTES // 1024 // 1024, total=size // 1024 // 1024) + "\n" + text
         except OSError as e:
-            text = f"Не удалось прочитать {self.path}: {e}"
+            text = _("Не удалось прочитать {path}: {error}").format(path=self.path, error=e)
         buf = self.view.get_buffer()
         buf.set_text(text)
         # newest entries are at the end
@@ -724,42 +789,42 @@ class AndroidPage:
         self.obbs = []
         self.widget, self.box = page()
 
-        self.box.pack_start(section("Установить APK"), False, False, 0)
+        self.box.pack_start(section(_("Установить APK")), False, False, 0)
         form = row_box()
         form.set_orientation(Gtk.Orientation.VERTICAL)
         form.set_spacing(8)
 
         name_row = Gtk.Box(spacing=8)
-        name_row.pack_start(Gtk.Label(label="Название в библиотеке:", xalign=0), False, False, 0)
+        name_row.pack_start(Gtk.Label(label=_("Название в библиотеке:"), xalign=0), False, False, 0)
         self.name = Gtk.Entry()
-        self.name.set_placeholder_text("например, Моя игра")
+        self.name.set_placeholder_text(_("например, Моя игра"))
         name_row.pack_start(self.name, True, True, 0)
         form.pack_start(name_row, False, False, 0)
 
         apk_row = Gtk.Box(spacing=8)
-        self.apk_label = Gtk.Label(label="APK не выбран", xalign=0)
+        self.apk_label = Gtk.Label(label=_("APK не выбран"), xalign=0)
         self.apk_label.set_ellipsize(Pango.EllipsizeMode.MIDDLE)
         self.apk_label.get_style_context().add_class("tool-sub")
-        btn_apk = Gtk.Button(label="Выбрать APK…")
+        btn_apk = Gtk.Button(label=_("Выбрать APK…"))
         btn_apk.connect("clicked", self.choose_apk)
         apk_row.pack_start(btn_apk, False, False, 0)
         apk_row.pack_start(self.apk_label, True, True, 0)
         form.pack_start(apk_row, False, False, 0)
 
         obb_row = Gtk.Box(spacing=8)
-        self.obb_label = Gtk.Label(label="OBB нет (необязательно)", xalign=0)
+        self.obb_label = Gtk.Label(label=_("OBB нет (необязательно)"), xalign=0)
         self.obb_label.set_ellipsize(Pango.EllipsizeMode.MIDDLE)
         self.obb_label.get_style_context().add_class("tool-sub")
-        btn_obb = Gtk.Button(label="Выбрать OBB…")
+        btn_obb = Gtk.Button(label=_("Выбрать OBB…"))
         btn_obb.connect("clicked", self.choose_obbs)
         obb_row.pack_start(btn_obb, False, False, 0)
         obb_row.pack_start(self.obb_label, True, True, 0)
         form.pack_start(obb_row, False, False, 0)
 
         lepton_row = Gtk.Box(spacing=8)
-        lepton_row.pack_start(Gtk.Label(label="Среда Android:", xalign=0), False, False, 0)
+        lepton_row.pack_start(Gtk.Label(label=_("Среда Android:"), xalign=0), False, False, 0)
         self.lepton = Gtk.ComboBoxText()
-        self.lepton.append("auto", "Авто (по minSdk из APK)")
+        self.lepton.append("auto", _("Авто (по minSdk из APK)"))
         self.lepton.append("11", "Lepton — Android 11 (SDK 30)")
         self.lepton.append("14", "Lepton 14 — Android 14 (SDK 34)")
         self.lepton.set_active_id("auto")
@@ -772,18 +837,18 @@ class AndroidPage:
 
         action_row = Gtk.Box(spacing=8)
         hint = Gtk.Label(
-            label="Приложение появится в библиотеке Steam и запустится через Lepton. "
-                  "Steam перезапустится.", xalign=0)
+            label=_("Приложение появится в библиотеке Steam и запустится через Lepton. "
+                    "Steam перезапустится."), xalign=0)
         hint.set_line_wrap(True)
         hint.get_style_context().add_class("tool-sub")
         action_row.pack_start(hint, True, True, 0)
-        self.btn_install = Gtk.Button(label="Установить")
+        self.btn_install = Gtk.Button(label=_("Установить"))
         self.btn_install.connect("clicked", self.install)
         action_row.pack_start(self.btn_install, False, False, 0)
         form.pack_start(action_row, False, False, 0)
         self.box.pack_start(form, False, False, 0)
 
-        self.box.pack_start(section("Установленные"), False, False, 0)
+        self.box.pack_start(section(_("Установленные")), False, False, 0)
         self.list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.box.pack_start(self.list, False, False, 0)
         self.refresh()
@@ -791,7 +856,7 @@ class AndroidPage:
     def _chooser(self, title, pattern, multiple):
         dlg = Gtk.FileChooserDialog(title=title, transient_for=self.window,
                                     action=Gtk.FileChooserAction.OPEN)
-        dlg.add_buttons("Отмена", Gtk.ResponseType.CANCEL, "Выбрать", Gtk.ResponseType.OK)
+        dlg.add_buttons(_("Отмена"), Gtk.ResponseType.CANCEL, _("Выбрать"), Gtk.ResponseType.OK)
         dlg.set_select_multiple(multiple)
         dlg.set_current_folder(os.path.expanduser("~/Downloads"))
         flt = Gtk.FileFilter()
@@ -804,7 +869,7 @@ class AndroidPage:
         return files
 
     def choose_apk(self, _btn):
-        files = self._chooser("Выберите APK", "*.apk", False)
+        files = self._chooser(_("Выберите APK"), "*.apk", False)
         if files:
             self.apk = files[0]
             self.apk_label.set_text(self.apk)
@@ -813,17 +878,18 @@ class AndroidPage:
             self.show_apk_info()
 
     def show_apk_info(self):
-        self.apk_info.set_text("Чтение APK…")
+        self.apk_info.set_text(_("Чтение APK…"))
         apk = self.apk
 
         def done(res):
             info = parse_kv(res.stdout)
             if res.returncode != 0 or not info.get("min_sdk"):
-                self.apk_info.set_text("Не удалось прочитать APK")
+                self.apk_info.set_text(_("Не удалось прочитать APK"))
                 return False
             env = "Lepton 14" if info.get("lepton") == "14" else "Lepton (Android 11)"
-            self.apk_info.set_text(f"{info.get('app_id', '?')}  ·  minSdk {info['min_sdk']}  ·  "
-                                   f"авто: {env}")
+            self.apk_info.set_text(
+                _("{app_id}  ·  minSdk {min_sdk}  ·  авто: {env}").format(
+                    app_id=info.get("app_id", "?"), min_sdk=info["min_sdk"], env=env))
             return False
 
         threading.Thread(
@@ -832,24 +898,24 @@ class AndroidPage:
         ).start()
 
     def choose_obbs(self, _btn):
-        self.obbs = self._chooser("Выберите OBB (можно несколько)", "*.obb", True)
+        self.obbs = self._chooser(_("Выберите OBB (можно несколько)"), "*.obb", True)
         self.obb_label.set_text(", ".join(os.path.basename(f) for f in self.obbs)
-                                if self.obbs else "OBB нет (необязательно)")
+                                if self.obbs else _("OBB нет (необязательно)"))
 
     def install(self, _btn):
         name = self.name.get_text().strip()
         if not name or not self.apk:
-            self.runner.log("Укажи название и выбери APK")
+            self.runner.log(_("Укажи название и выбери APK"))
             return
         if "/" in name:
-            self.runner.log("Название не должно содержать «/»")
+            self.runner.log(_("Название не должно содержать «/»"))
             return
-        if not confirm(self.window, f"Установить «{name}»?",
-                       "Steam перезапустится, в шлеме это займёт около полуминуты."):
+        if not confirm(self.window, _("Установить «{name}»?").format(name=name),
+                       _("Steam перезапустится, в шлеме это займёт около полуминуты.")):
             return
         args = ([self.script, "install", name, self.apk] + self.obbs
                 + ["--lepton", self.lepton.get_active_id() or "auto"])
-        self.runner.run(run_user, args, f"Установка {name}",
+        self.runner.run(run_user, args, _("Установка {name}").format(name=name),
                         on_done=lambda _r: self.refresh(), widgets=[self.btn_install])
 
     def refresh(self):
@@ -858,7 +924,7 @@ class AndroidPage:
                 child.destroy()
             apps = parse_tsv(res.stdout, 8)
             if not apps:
-                self.list.pack_start(section("Пока ничего не установлено"), False, False, 0)
+                self.list.pack_start(section(_("Пока ничего не установлено")), False, False, 0)
             for name, apk, obbs, size, container, tool_name, _appid, log in apps:
                 self.list.pack_start(self.app_row(name, apk, obbs, size, container == "1",
                                                   tool_name, log), False, False, 0)
@@ -873,24 +939,25 @@ class AndroidPage:
     def app_row(self, name, apk, obbs, size, has_container, tool_name, log):
         box = row_box()
         text, sub = title_block(name)
-        state = "запускался" if has_container else "ещё не запускался"
+        state = _("запускался") if has_container else _("ещё не запускался")
         env = {"lepton": "Lepton (Android 11)", "lepton_14": "Lepton 14"}.get(tool_name, tool_name)
         folder = os.path.dirname(apk)
-        sub.set_text(f"{env}  ·  {size} МБ  ·  OBB: {obbs}  ·  {state}  ·  {folder}")
+        sub.set_text(_("{env}  ·  {size} МБ  ·  OBB: {obbs}  ·  {state}  ·  {folder}").format(
+            env=env, size=size, obbs=obbs, state=state, folder=folder))
         box.pack_start(text, True, True, 0)
 
-        btn_log = Gtk.Button(label="Лог")
+        btn_log = Gtk.Button(label=_("Лог"))
         btn_log.set_sensitive(bool(log))
-        btn_log.set_tooltip_text(log or "Лога пока нет: приложение ещё не запускалось")
+        btn_log.set_tooltip_text(log or _("Лога пока нет: приложение ещё не запускалось"))
         btn_log.connect("clicked", lambda _b: LogViewer(self.window, name, log, self.open_path))
         box.pack_start(btn_log, False, False, 0)
 
-        btn_dir = Gtk.Button(label="Папка")
+        btn_dir = Gtk.Button(label=_("Папка"))
         btn_dir.set_tooltip_text(folder)
         btn_dir.connect("clicked", lambda _b: self.open_path(folder))
         box.pack_start(btn_dir, False, False, 0)
 
-        btn = Gtk.Button(label="Удалить")
+        btn = Gtk.Button(label=_("Удалить"))
         btn.get_style_context().add_class("danger")
         btn.connect("clicked", lambda _b: self.remove(name, btn))
         box.pack_start(btn, False, False, 0)
@@ -899,40 +966,40 @@ class AndroidPage:
     def open_path(self, path):
         """Opens a file or folder in the default desktop app (Kate, Dolphin, ...)."""
         if not path or not os.path.exists(path):
-            self.runner.log(f"Не найдено: {path}")
+            self.runner.log(_("Не найдено: {path}").format(path=path))
             return
         try:
             subprocess.Popen(["xdg-open", path], start_new_session=True,
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            self.runner.log(f"Открыто: {path}")
+            self.runner.log(_("Открыто: {path}").format(path=path))
         except OSError as e:
-            self.runner.log(f"Не удалось открыть {path}: {e}")
+            self.runner.log(_("Не удалось открыть {path}: {error}").format(path=path, error=e))
 
     def remove(self, name, btn):
         dlg = Gtk.MessageDialog(transient_for=self.window, modal=True,
                                 message_type=Gtk.MessageType.QUESTION,
                                 buttons=Gtk.ButtonsType.NONE,
-                                text=f"Удалить «{name}» из библиотеки?")
+                                text=_("Удалить «{name}» из библиотеки?").format(name=name))
         dlg.format_secondary_text(
-            "Контейнер Lepton с сохранениями останется. Steam перезапустится.")
-        dlg.add_buttons("Отмена", Gtk.ResponseType.CANCEL,
-                        "Только ярлык", 1, "Ярлык и файлы", 2)
+            _("Контейнер Lepton с сохранениями останется. Steam перезапустится."))
+        dlg.add_buttons(_("Отмена"), Gtk.ResponseType.CANCEL,
+                        _("Только ярлык"), 1, _("Ярлык и файлы"), 2)
         resp = dlg.run()
         dlg.destroy()
         if resp not in (1, 2):
             return
         args = [self.script, "remove", name] + (["--purge"] if resp == 2 else [])
-        self.runner.run(run_user, args, f"Удаление {name}",
+        self.runner.run(run_user, args, _("Удаление {name}").format(name=name),
                         on_done=lambda _r: self.refresh(), widgets=[btn])
 
 
 # ---------- transfer to PC tab ----------
 
 def human_size(n):
-    for unit, step in (("ГБ", 1 << 30), ("МБ", 1 << 20), ("КБ", 1 << 10)):
+    for unit, step in ((_("ГБ"), 1 << 30), (_("МБ"), 1 << 20), (_("КБ"), 1 << 10)):
         if n >= step:
             return f"{n / step:.1f} {unit}"
-    return f"{n} Б"
+    return f"{n} {_('Б')}"
 
 
 class TransferPage:
@@ -944,31 +1011,31 @@ class TransferPage:
         self.script = tool("to_pc.py")
         self.widget, outer = page()
 
-        shots = Section("transfer.screenshots", "Скриншоты")
+        shots = Section("transfer.screenshots", _("Скриншоты"))
         outer.pack_start(shots, False, False, 0)
-        shots.add_row(StatusTool(runner, "Копировать скриншоты на Frame (Pictures/Screenshots)",
-                                 "screenshots_local.sh", install_label="Включить",
-                                 remove_label="Выключить", actions_as_root=False))
-        shots.add_row(StatusTool(runner, "Копировать скриншоты на ПК (Изображения\\SteamFrame)",
-                                 "screenshots_pc.sh", install_label="Включить",
-                                 remove_label="Выключить", actions_as_root=False))
-        files = Section("transfer.files", "Файлы на ПК")
+        shots.add_row(StatusTool(runner, _("Копировать скриншоты на Frame (Pictures/Screenshots)"),
+                                 "screenshots_local.sh", install_label=_("Включить"),
+                                 remove_label=_("Выключить"), actions_as_root=False))
+        shots.add_row(StatusTool(runner, _("Копировать скриншоты на ПК (Изображения\\SteamFrame)"),
+                                 "screenshots_pc.sh", install_label=_("Включить"),
+                                 remove_label=_("Выключить"), actions_as_root=False))
+        files = Section("transfer.files", _("Файлы на ПК"))
         outer.pack_start(files, False, False, 0)
         self.box = files.body
 
         top = row_box()
-        text, self.agent = title_block("Отправить на ПК (Загрузки\\SteamFrame)")
+        text, self.agent = title_block(_("Отправить на ПК (Загрузки\\SteamFrame)"))
         top.pack_start(text, True, True, 0)
-        for label, handler in (("Файлы…", self.pick_files), ("Папка…", self.pick_folder)):
+        for label, handler in ((_("Файлы…"), self.pick_files), (_("Папка…"), self.pick_folder)):
             btn = Gtk.Button(label=label)
             btn.connect("clicked", handler)
             top.pack_start(btn, False, False, 0)
         self.box.pack_start(top, False, False, 0)
 
         hint = Gtk.Label(
-            label="Агент на ПК забирает очередь каждые 5 секунд. Если ПК выключен, "
-                  "файлы подождут в очереди. Большие файлы не занимают лишнего места: "
-                  "в очередь кладутся жёсткие ссылки.", xalign=0)
+            label=_("Агент на ПК забирает очередь каждые 5 секунд. Если ПК выключен, "
+                    "файлы подождут в очереди. Большие файлы не занимают лишнего места: "
+                    "в очередь кладутся жёсткие ссылки."), xalign=0)
         hint.set_line_wrap(True)
         hint.get_style_context().add_class("tool-sub")
         hint.set_margin_start(16)
@@ -976,8 +1043,8 @@ class TransferPage:
         self.box.pack_start(hint, False, False, 0)
 
         head = Gtk.Box(spacing=8)
-        head.pack_start(section("Очередь"), True, True, 0)
-        btn_clear = Gtk.Button(label="Очистить очередь")
+        head.pack_start(section(_("Очередь")), True, True, 0)
+        btn_clear = Gtk.Button(label=_("Очистить очередь"))
         btn_clear.set_margin_end(12)
         btn_clear.connect("clicked", self.clear)
         head.pack_start(btn_clear, False, False, 0)
@@ -995,46 +1062,46 @@ class TransferPage:
 
     def pick(self, title, action):
         dlg = Gtk.FileChooserDialog(title=title, transient_for=self.window, action=action)
-        dlg.add_buttons("Отмена", Gtk.ResponseType.CANCEL, "Отправить", Gtk.ResponseType.OK)
+        dlg.add_buttons(_("Отмена"), Gtk.ResponseType.CANCEL, _("Отправить"), Gtk.ResponseType.OK)
         dlg.set_select_multiple(True)
         dlg.set_current_folder(os.path.expanduser("~"))
         paths = dlg.get_filenames() if dlg.run() == Gtk.ResponseType.OK else []
         dlg.destroy()
         if paths:
             self.runner.run(run_user, [self.script, "add"] + paths,
-                            f"В очередь на ПК: {len(paths)}", on_done=lambda _r: self.refresh())
+                            _("В очередь на ПК: {n}").format(n=len(paths)), on_done=lambda _r: self.refresh())
 
     def pick_files(self, _btn):
-        self.pick("Файлы для отправки на ПК", Gtk.FileChooserAction.OPEN)
+        self.pick(_("Файлы для отправки на ПК"), Gtk.FileChooserAction.OPEN)
 
     def pick_folder(self, _btn):
-        self.pick("Папки для отправки на ПК", Gtk.FileChooserAction.SELECT_FOLDER)
+        self.pick(_("Папки для отправки на ПК"), Gtk.FileChooserAction.SELECT_FOLDER)
 
     def clear(self, _btn):
-        if confirm(self.window, "Очистить очередь?",
-                   "Файлы, которые ещё не ушли на ПК, будут убраны из очереди. "
-                   "Оригиналы на Frame не пострадают."):
-            self.runner.run(run_user, [self.script, "clear"], "Очистка очереди",
+        if confirm(self.window, _("Очистить очередь?"),
+                   _("Файлы, которые ещё не ушли на ПК, будут убраны из очереди. "
+                     "Оригиналы на Frame не пострадают.")):
+            self.runner.run(run_user, [self.script, "clear"], _("Очистка очереди"),
                             on_done=lambda _r: self.refresh())
 
     def refresh(self):
         def done(listing, status):
             age = int(status.stdout.strip() or -1)
             if age < 0:
-                self.agent.set_text("Агент на ПК ещё не подключался")
+                self.agent.set_text(_("Агент на ПК ещё не подключался"))
             elif age < 30:
-                self.agent.set_text(f"ПК на связи ({age} с назад)")
+                self.agent.set_text(_("ПК на связи ({age} с назад)").format(age=age))
             else:
-                self.agent.set_text(f"ПК не на связи {age // 60} мин — включён ли ПК и агент?")
+                self.agent.set_text(_("ПК не на связи {min} мин — включён ли ПК и агент?").format(min=age // 60))
             for child in self.queue.get_children():
                 child.destroy()
             items = parse_tsv(listing.stdout, 2)
             if not items:
-                self.queue.pack_start(section("Пусто — всё доставлено"), False, False, 0)
+                self.queue.pack_start(section(_("Пусто — всё доставлено")), False, False, 0)
             for name, size in items:
                 box = row_box()
                 t, sub = title_block(name)
-                sub.set_text(f"{human_size(int(size))}  ·  ждёт, пока ПК заберёт")
+                sub.set_text(_("{size}  ·  ждёт, пока ПК заберёт").format(size=human_size(int(size))))
                 box.pack_start(t, True, True, 0)
                 self.queue.pack_start(box, False, False, 0)
             self.queue.show_all()
@@ -1059,22 +1126,22 @@ class AppsPage:
 
         top = row_box()
         self.entry = Gtk.SearchEntry()
-        self.entry.set_placeholder_text("Поиск на Flathub: telegram, firefox, vlc…")
+        self.entry.set_placeholder_text(_("Поиск на Flathub: telegram, firefox, vlc…"))
         self.entry.connect("activate", lambda _e: self.search())
         top.pack_start(self.entry, True, True, 0)
-        self.btn_search = Gtk.Button(label="Найти")
+        self.btn_search = Gtk.Button(label=_("Найти"))
         self.btn_search.connect("clicked", lambda _b: self.search())
         top.pack_start(self.btn_search, False, False, 0)
-        fix = Gtk.Button(label="Починить Flathub")
+        fix = Gtk.Button(label=_("Починить Flathub"))
         fix.connect("clicked", self.fix_flathub)
         top.pack_start(fix, False, False, 0)
         self.box.pack_start(top, False, False, 0)
 
-        self.box.pack_start(section("Результаты поиска"), False, False, 0)
+        self.box.pack_start(section(_("Результаты поиска")), False, False, 0)
         self.results = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.box.pack_start(self.results, False, False, 0)
 
-        self.box.pack_start(section("Установлено"), False, False, 0)
+        self.box.pack_start(section(_("Установлено")), False, False, 0)
         self.installed = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.box.pack_start(self.installed, False, False, 0)
 
@@ -1092,10 +1159,10 @@ class AppsPage:
         sub.set_text(f"{app_id}  ·  {detail}" if detail else app_id)
         box.pack_start(text, True, True, 0)
         if installed:
-            btn = Gtk.Button(label="Удалить")
+            btn = Gtk.Button(label=_("Удалить"))
             btn.connect("clicked", lambda _b: self.remove(app_id, name, btn))
         else:
-            btn = Gtk.Button(label="Установить")
+            btn = Gtk.Button(label=_("Установить"))
             btn.connect("clicked", lambda _b: self.install(app_id, name, btn))
         box.pack_start(btn, False, False, 0)
         return box
@@ -1109,7 +1176,7 @@ class AppsPage:
                 self.installed.pack_start(self.app_row(app_id, name, version, True),
                                           False, False, 0)
             if not apps:
-                self.installed.pack_start(section("Ничего не установлено"), False, False, 0)
+                self.installed.pack_start(section(_("Ничего не установлено")), False, False, 0)
             self.installed.show_all()
             return False
 
@@ -1131,10 +1198,10 @@ class AppsPage:
                     self.app_row(app_id, name, desc, app_id in self.installed_ids),
                     False, False, 0)
             if not apps:
-                self.results.pack_start(section("Ничего не найдено"), False, False, 0)
+                self.results.pack_start(section(_("Ничего не найдено")), False, False, 0)
             self.results.show_all()
 
-        self.runner.run(run_user, [self.script, "search", query], f"Поиск «{query}»",
+        self.runner.run(run_user, [self.script, "search", query], _("Поиск «{query}»").format(query=query),
                         on_done=done, widgets=[self.btn_search])
 
     def install(self, app_id, name, btn):
@@ -1142,17 +1209,18 @@ class AppsPage:
             self.refresh_installed()
             self.search()
 
-        self.runner.run(run_root, [self.script, "install", app_id], f"Установка {name}",
+        self.runner.run(run_root, [self.script, "install", app_id], _("Установка {name}").format(name=name),
                         on_done=done, widgets=[btn])
 
     def remove(self, app_id, name, btn):
-        if not confirm(self.window, f"Удалить {name}?", "Данные приложения в ~/.var/app останутся."):
+        if not confirm(self.window, _("Удалить {name}?").format(name=name),
+                   _("Данные приложения в ~/.var/app останутся.")):
             return
-        self.runner.run(run_root, [self.script, "remove", app_id], f"Удаление {name}",
+        self.runner.run(run_root, [self.script, "remove", app_id], _("Удаление {name}").format(name=name),
                         on_done=lambda _r: self.refresh_installed(), widgets=[btn])
 
     def fix_flathub(self, btn):
-        self.runner.run(run_root, [self.script, "fix-flathub"], "Починка Flathub",
+        self.runner.run(run_root, [self.script, "fix-flathub"], _("Починка Flathub"),
                         widgets=[btn])
 
 
@@ -1169,8 +1237,15 @@ class MainWindow(Gtk.Window):
         headerbar.set_show_close_button(True)
         headerbar.set_decoration_layout("menu:minimize,maximize,close")
         headerbar.set_title("Steam Frame Helper")
-        headerbar.set_subtitle(f"версия {VERSION}")
+        headerbar.set_subtitle(_("версия {version}").format(version=VERSION))
         self.set_titlebar(headerbar)
+
+        lang_combo = Gtk.ComboBoxText()
+        for code, name in LANGUAGES:
+            lang_combo.append(code, name)
+        lang_combo.set_active_id(LANG)
+        lang_combo.connect("changed", self.on_language_changed)
+        headerbar.pack_end(lang_combo)
 
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(root)
@@ -1186,46 +1261,61 @@ class MainWindow(Gtk.Window):
         root.pack_start(self.status, False, False, 0)
 
         tools_page, tools = page()
-        net = Section("tools.network", "Сеть")
+        net = Section("tools.network", _("Сеть"))
         tools.pack_start(net, False, False, 0)
         # AmneziaVPN is not part of the public release; the row appears only where its
         # scripts were added by hand (tools/amneziavpn.sh).
         if os.path.exists(tool("amneziavpn.sh")):
-            net.add_row(StatusTool(runner, "AmneziaVPN (нативная сборка ARM64)", "amneziavpn.sh",
-                                   install_label="Установить / обновить",
+            net.add_row(StatusTool(runner, _("AmneziaVPN (нативная сборка ARM64)"), "amneziavpn.sh",
+                                   install_label=_("Установить / обновить"),
                                    reinstall=True, repair=True))
         net.add_row(RegionTool(runner))
-        net.add_row(StatusTool(runner, "Wi-Fi без энергосбережения", "wifi.sh",
-                               install_label="Выключить", remove_label="Включить"))
+        net.add_row(StatusTool(runner, _("Wi-Fi без энергосбережения"), "wifi.sh",
+                               install_label=_("Выключить"), remove_label=_("Включить")))
         net.add_row(VrHudTool(runner))
-        system = Section("tools.system", "Система")
+        system = Section("tools.system", _("Система"))
         tools.pack_start(system, False, False, 0)
-        system.add_row(StatusTool(runner, "Запись в системный раздел", "readonly.sh",
-                                  install_label="Разблокировать",
-                                  remove_label="Заблокировать",
+        system.add_row(StatusTool(runner, _("Запись в системный раздел"), "readonly.sh",
+                                  install_label=_("Разблокировать"),
+                                  remove_label=_("Заблокировать"),
                                   status_as_root=True))
         system.add_row(QuickActions(runner, self))
-        notebook.append_page(tools_page, Gtk.Label(label="Инструменты"))
+        notebook.append_page(tools_page, Gtk.Label(label=_("Инструменты")))
 
-        notebook.append_page(PluginsPage(runner, self).widget, Gtk.Label(label="Плагины"))
-        notebook.append_page(GamesPage(runner, self).widget, Gtk.Label(label="Игры"))
-        notebook.append_page(AppsPage(runner, self).widget, Gtk.Label(label="Приложения"))
+        notebook.append_page(PluginsPage(runner, self).widget, Gtk.Label(label=_("Плагины")))
+        notebook.append_page(GamesPage(runner, self).widget, Gtk.Label(label=_("Игры")))
+        notebook.append_page(AppsPage(runner, self).widget, Gtk.Label(label=_("Приложения")))
         notebook.append_page(AndroidPage(runner, self).widget, Gtk.Label(label="Android"))
-        notebook.append_page(TransferPage(runner, self).widget, Gtk.Label(label="Передача"))
+        notebook.append_page(TransferPage(runner, self).widget, Gtk.Label(label=_("Передача")))
 
         dev_page, dev = page()
-        view = Section("dev.view", "Просмотр")
+        view = Section("dev.view", _("Просмотр"))
         dev.pack_start(view, False, False, 0)
         view.add_row(UiStreamTool(runner))
-        remote = Section("dev.remote", "Удалённый доступ")
+        remote = Section("dev.remote", _("Удалённый доступ"))
         dev.pack_start(remote, False, False, 0)
-        remote.add_row(StatusTool(runner, "RDP: Wi-Fi без запроса пароля", "rdp_wifi_scan.sh",
-                                  install_label="Включить", remove_label="Выключить",
+        remote.add_row(StatusTool(runner, _("RDP: Wi-Fi без запроса пароля"), "rdp_wifi_scan.sh",
+                                  install_label=_("Включить"), remove_label=_("Выключить"),
                                   status_as_root=True))
-        notebook.append_page(dev_page, Gtk.Label(label="Разработка"))
+        notebook.append_page(dev_page, Gtk.Label(label=_("Разработка")))
 
     def log(self, text):
         self.status.set_text(text)
+
+    @staticmethod
+    def on_language_changed(combo):
+        code = combo.get_active_id()
+        if not code or code == LANG:
+            return
+        save_ui_state("language", code)
+        try:
+            # the background HUD reads the language at start
+            subprocess.run(["systemctl", "--user", "try-restart", "sfh-vr-hud.service"],
+                           capture_output=True)
+        except OSError:
+            pass
+        os.environ["SFH_LANG"] = code
+        os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
 def main():

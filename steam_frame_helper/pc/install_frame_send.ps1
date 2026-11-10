@@ -3,6 +3,9 @@
 # Not under AppData: packaged (MSIX) apps that run this installer get AppData
 # writes redirected into their private copy, invisible to the rest of Windows.
 
+$IsRu = (Get-UICulture).TwoLetterISOLanguageName -eq 'ru'
+function T($ru, $en) { if ($IsRu) { $ru } else { $en } }
+
 $Dir = Join-Path $env:USERPROFILE 'SteamFrameHelper'
 $Script = Join-Path $Dir 'FrameSend.ps1'
 New-Item -ItemType Directory -Force -Path $Dir | Out-Null
@@ -13,13 +16,13 @@ $text = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot 'FrameSend.ps1'),
 [System.IO.File]::WriteAllText($Script, $text, (New-Object System.Text.UTF8Encoding($true)))
 
 $shell = New-Object -ComObject WScript.Shell
-$lnkPath = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Отправить на Frame.lnk'
+$lnkPath = Join-Path ([Environment]::GetFolderPath('Desktop')) ((T 'Отправить на Frame' 'Send to Frame') + '.lnk')
 $lnk = $shell.CreateShortcut($lnkPath)
 $lnk.TargetPath = 'powershell.exe'
 $lnk.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$Script`""
 $lnk.WorkingDirectory = $Dir
 $lnk.IconLocation = "$env:SystemRoot\System32\shell32.dll,146"
-$lnk.Description = 'Отправить файлы и папки в Загрузки на Steam Frame'
+$lnk.Description = T 'Отправить файлы и папки в Загрузки на Steam Frame' 'Send files and folders to Downloads on the Steam Frame'
 $lnk.Save()
 
 Write-Output "Installed: $Script"

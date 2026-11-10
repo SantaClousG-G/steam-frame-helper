@@ -16,6 +16,7 @@ RELEASES_WEB=https://github.com/SteamDeckHomebrew/decky-loader/releases
 SERVICE_URL=https://raw.githubusercontent.com/SteamDeckHomebrew/decky-loader/main/dist/plugin_loader-release.service
 SYSTEM_SERVICE=/etc/systemd/system/plugin_loader.service
 TOOLS="$(cd "$(dirname "$0")" && pwd)"
+. "$TOOLS/i18n.sh"
 
 TARGET_USER="${SUDO_USER:-${PKEXEC_UID:+$(id -nu "$PKEXEC_UID")}}"
 TARGET_USER="${TARGET_USER:-$(id -nu)}"
@@ -89,35 +90,36 @@ print(digest)
 }
 
 do_status() {
-    local version="" active port
+    local version="" active port plugins
     [ -f "$SERVICES/.loader.version" ] && version="$(cat "$SERVICES/.loader.version")"
     active="$(systemctl is-active plugin_loader 2>/dev/null)"
-    port="нет"
-    ss -ltn 2>/dev/null | grep -q ':1337 ' && port="да"
+    port="$(t "нет" "no")"
+    ss -ltn 2>/dev/null | grep -q ':1337 ' && port="$(t "да" "yes")"
     if [ -f "$SYSTEM_SERVICE" ] && [ -x "$SERVICES/PluginLoader" ]; then
         echo "installed=1"
-        echo "info=Decky ${version:-?}  ·  служба: ${active:-?}  ·  порт 1337: $port  ·  магазин: $(store_name)  ·  плагинов: $(find "$HOMEBREW/plugins" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)"
+        plugins="$(find "$HOMEBREW/plugins" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)"
+        echo "info=$(t "Decky ${version:-?}  ·  служба: ${active:-?}  ·  порт 1337: $port  ·  магазин: $(store_name)  ·  плагинов: $plugins" "Decky ${version:-?}  ·  service: ${active:-?}  ·  port 1337: $port  ·  store: $(store_name)  ·  plugins: $plugins")"
     else
         echo "installed=0"
-        echo "info=Не установлен (официальная сборка $(asset_name))"
+        echo "info=$(t "Не установлен (официальная сборка $(asset_name))" "Not installed (official build $(asset_name))")"
     fi
 }
 
 do_install() {
     local info version url sha
     tmp=""
-    info="$(latest_release)" || { echo "Не удалось получить релиз Decky с GitHub" >&2; exit 1; }
+    info="$(latest_release)" || { echo "$(t "Не удалось получить релиз Decky с GitHub" "Could not get the Decky release from GitHub")" >&2; exit 1; }
     IFS=$'\t' read -r version url sha <<< "$info"
     if [ -z "$sha" ]; then
-        echo "У релиза $version нет SHA-256, установка отменена" >&2
+        echo "$(t "У релиза $version нет SHA-256, установка отменена" "Release $version has no SHA-256, install cancelled")" >&2
         exit 1
     fi
 
     tmp="$(mktemp)"
     trap 'rm -f "${tmp:-}"' EXIT
-    curl -fL --retry 2 -o "$tmp" "$url" || { echo "Ошибка загрузки $url" >&2; exit 1; }
+    curl -fL --retry 2 -o "$tmp" "$url" || { echo "$(t "Ошибка загрузки $url" "Download failed: $url")" >&2; exit 1; }
     if [ "$(sha256sum "$tmp" | cut -d' ' -f1)" != "$sha" ]; then
-        echo "SHA-256 не совпал, установка отменена" >&2
+        echo "$(t "SHA-256 не совпал, установка отменена" "SHA-256 mismatch, install cancelled")" >&2
         exit 1
     fi
 
@@ -132,7 +134,7 @@ do_install() {
     systemctl daemon-reload
     systemctl enable --now plugin_loader
     shortcut add
-    echo "Decky $version установлен"
+    echo "$(t "Decky $version установлен" "Decky $version installed")"
 }
 
 # Plugins shipped with Steam Frame Helper (decky-plugin/<folder>), e.g.
@@ -203,9 +205,10 @@ PY
 }
 
 store_name() {
-    python3 - "$SETTINGS" "$STORE_URL" "$STORE_CUSTOM" <<'PY'
+    python3 - "$SETTINGS" "$STORE_URL" "$STORE_CUSTOM" "$(t "свой: " "custom: ")" "$(t "официальный" "official")" <<'PY'
 import json, sys
 path, url, channel = sys.argv[1], sys.argv[2], int(sys.argv[3])
+custom_label, official_label = sys.argv[4], sys.argv[5]
 try:
     with open(path) as f:
         data = json.load(f)
@@ -214,15 +217,15 @@ except (OSError, ValueError):
 if data.get("store") == channel and data.get("store-url") == url:
     print("steamdeckbase")
 elif data.get("store") == channel:
-    print("свой: " + str(data.get("store-url")))
+    print(custom_label + str(data.get("store-url")))
 else:
-    print({0: "официальный", 1: "testing"}.get(data.get("store", 0), "?"))
+    print({0: official_label, 1: "testing"}.get(data.get("store", 0), "?"))
 PY
 }
 
 do_repair() {
     if [ ! -x "$SERVICES/PluginLoader" ]; then
-        echo "Бинарник Decky не найден — переустановка"
+        echo "$(t "Бинарник Decky не найден — переустановка" "Decky binary not found, reinstalling")"
         do_install
         return
     fi
@@ -235,7 +238,7 @@ do_repair() {
     systemctl enable plugin_loader
     systemctl restart plugin_loader
     shortcut add
-    echo "Decky починен: служба, права, магазин, ярлык"
+    echo "$(t "Decky починен: служба, права, магазин, ярлык" "Decky repaired: service, permissions, store, shortcut")"
 }
 
 # "Decky" entry in the Steam library: Frame has no Quick Access Menu in VR.

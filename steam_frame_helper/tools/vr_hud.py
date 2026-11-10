@@ -35,6 +35,9 @@ import tempfile
 import time
 import urllib.request
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from i18n import T  # noqa: E402
+
 LIB = "/opt/steamvr/bin/linuxarm64/libopenvr_api.so"
 FONT = "/usr/share/fonts/TTF/Hack-Regular.ttf"
 CONFIG = os.path.expanduser("~/.config/steam_frame_helper/vr_hud.json")
@@ -290,8 +293,9 @@ class TextRenderer:
 
 # EVRLinkType / quality values as used by the Steam UI (steamui sp.js enums)
 LINK_ADAPTER, LINK_USB, LINK_WIFI, LINK_WIFI2, LINK_COMBINED = 2, 1, 3, 4, 255
-QUALITY = {1: ("отлично", GREEN), 2: ("хорошо", GREEN), 3: ("средне", YELLOW),
-           4: ("плохо", RED), 5: ("плохо", RED)}
+QUALITY = {1: (T("отлично", "excellent"), GREEN), 2: (T("хорошо", "good"), GREEN),
+           3: (T("средне", "fair"), YELLOW),
+           4: (T("плохо", "poor"), RED), 5: (T("плохо", "poor"), RED)}
 STEAM_JS = ("(function(){var s=window.streamingStore&&window.streamingStore.m_vrLinkStatus;"
             "return s?JSON.stringify(s.toObject()):''})()")
 
@@ -528,21 +532,22 @@ class Hud:
         sig = to_int(info.get("signal"))
         head = [(f"{title} ", WHITE), (f"{self.chan[dev]} ", GREY)]
         if not info.get("connected"):
-            lines.append(head + [("нет связи", RED)])
+            lines.append(head + [(T("нет связи", "no link"), RED)])
             return lines
-        head.append((f"{sig} дБм" if sig is not None else "? дБм",
+        head.append((f"{sig} {T('дБм', 'dBm')}" if sig is not None else f"? {T('дБм', 'dBm')}",
                      grade(sig, -55, -70, lower_is_better=False)))
         lines.append(head)
         rx, tx = rate
         if steam:
             ping, loss, _ = steam
             loss_pct = (loss or 0) * 100
-            lines.append([(" пинг ", GREY), (f"{ping:.1f} мс" if ping is not None else "-",
+            lines.append([(T(" пинг ", " ping "), GREY),
+                          (f"{ping:.1f} {T('мс', 'ms')}" if ping is not None else "-",
                                               grade(ping, 10, 30)),
-                          ("  потери ", GREY), (f"{loss_pct:.1f}%", grade(loss_pct, 0.5, 2))])
+                          (T("  потери ", "  loss "), GREY), (f"{loss_pct:.1f}%", grade(loss_pct, 0.5, 2))])
         else:
-            lines.append([(" в стриме не используется", GREY)])
-        lines.append([(f" ↓{rx or 0:.1f} ↑{tx or 0:.1f} Мбит/с", WHITE),
+            lines.append([(T(" в стриме не используется", " not used in stream"), GREY)])
+        lines.append([(f" ↓{rx or 0:.1f} ↑{tx or 0:.1f} {T('Мбит/с', 'Mbit/s')}", WHITE),
                       (f"  PHY ↓{phy(info.get('rx'))} ↑{phy(info.get('tx'))}", GREY)])
         return lines
 
@@ -553,19 +558,19 @@ class Hud:
         links = self.links
         lines = []
         if links is None:
-            lines.append([("СТРИМ ", WHITE), ("не идёт", GREY)])
+            lines.append([(T("СТРИМ ", "STREAM "), WHITE), (T("не идёт", "not running"), GREY)])
         else:
             combined = links.get(LINK_COMBINED)
             q_text, q_col = QUALITY.get(combined[2] if combined else 0, ("—", GREY))
             total = sum(r[0] or 0 for r in rates.values())
-            lines.append([("СТРИМ ", WHITE), (q_text, q_col),
-                          (f"  ↓{total:.1f} Мбит/с", WHITE)])
+            lines.append([(T("СТРИМ ", "STREAM "), WHITE), (q_text, q_col),
+                          (f"  ↓{total:.1f} {T('Мбит/с', 'Mbit/s')}", WHITE)])
         steam = links or {}
-        lines += self.link_lines("АДАПТЕР", "wlanap", self.ap, rates["wlanap"],
+        lines += self.link_lines(T("АДАПТЕР", "ADAPTER"), "wlanap", self.ap, rates["wlanap"],
                                  steam.get(LINK_ADAPTER) or steam.get(LINK_USB))
         lines += self.link_lines("WI-FI", "wlan0", self.wl, rates["wlan0"],
                                  steam.get(LINK_WIFI) or steam.get(LINK_WIFI2))
-        lines.append([(f"батарея {self.batt}%   ", GREY), (time.strftime("%H:%M:%S"), GREY)])
+        lines.append([(f"{T('батарея', 'battery')} {self.batt}%   ", GREY), (time.strftime("%H:%M:%S"), GREY)])
         return lines
 
 

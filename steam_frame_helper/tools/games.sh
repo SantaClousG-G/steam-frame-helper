@@ -14,6 +14,8 @@ set -u
 STEAM="$HOME/.local/share/Steam"
 APPS="$STEAM/steamapps"
 BACKUPS="$HOME/steam_frame_helper_backups"
+TOOLS="$(cd "$(dirname "$0")" && pwd)"
+. "$TOOLS/i18n.sh"
 
 acf_value() {
     # acf_value <file> <key>
@@ -68,7 +70,7 @@ backup() {
     local id="$1" paths file
     mapfile -t paths < <(save_paths "$id")
     if [ "${#paths[@]}" -eq 0 ]; then
-        echo "Нет сохранений для $id" >&2
+        echo "$(t "Нет сохранений для $id" "No saves found for $id")" >&2
         exit 3
     fi
     mkdir -p "$BACKUPS/$id"

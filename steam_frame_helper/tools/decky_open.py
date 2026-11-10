@@ -18,6 +18,9 @@ import sys
 import time
 import urllib.request
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from i18n import T  # noqa: E402
+
 CEF_URL = "http://127.0.0.1:8080/json"
 TARGET_TITLE = "SharedJSContext"
 ROUTE = "/sfh-decky"
@@ -45,7 +48,7 @@ JS_TEMPLATE = """
         d.tabsHook.render(tabs, true);
         return tabs.find(t => t.key === 999) || null;
       }, []);
-      if (!tab) return React.createElement("div", {style: {padding: "32px"}}, "Decky не загружен");
+      if (!tab) return React.createElement("div", {style: {padding: "32px"}}, __NOT_LOADED__);
       return React.createElement("div",
         {style: {padding: "24px 32px", height: "100%", overflowY: "auto", boxSizing: "border-box"}},
         React.createElement("div",
@@ -136,26 +139,30 @@ def find_target():
 def main():
     page = sys.argv[1] if len(sys.argv) > 1 else "panel"
     if page not in PAGES:
-        print(f"Unknown page: {page}. Use one of: {', '.join(PAGES)}", file=sys.stderr)
+        print(T("Неизвестная страница: {page}. Допустимо: {pages}",
+                "Unknown page: {page}. Use one of: {pages}").format(page=page, pages=", ".join(PAGES)),
+              file=sys.stderr)
         return 2
     js = (JS_TEMPLATE.replace("__ROUTE__", json.dumps(ROUTE))
-          .replace("__PATH__", json.dumps(PAGES[page])))
+          .replace("__PATH__", json.dumps(PAGES[page]))
+          .replace("__NOT_LOADED__", json.dumps(T("Decky не загружен", "Decky is not loaded"))))
 
     deadline = time.time() + WAIT_SECONDS
-    last_error = "Steam UI не найден"
+    last_error = T("Steam UI не найден", "Steam UI not found")
     while time.time() < deadline:
         try:
             ws_url = find_target()
             if ws_url:
                 result = CDP(ws_url).evaluate(js)
                 if result == "ok":
-                    print(f"Открыто: {PAGES[page]}")
+                    print(T("Открыто: {page}", "Opened: {page}").format(page=PAGES[page]))
                     return 0
-                last_error = "Decky ещё не загрузился в Steam"
+                last_error = T("Decky ещё не загрузился в Steam", "Decky has not loaded in Steam yet")
         except (OSError, ValueError, ConnectionError) as e:
             last_error = str(e)
         time.sleep(2)
-    print(f"Не удалось открыть Decky: {last_error}", file=sys.stderr)
+    print(T("Не удалось открыть Decky: {err}", "Could not open Decky: {err}").format(err=last_error),
+          file=sys.stderr)
     return 1
 
 

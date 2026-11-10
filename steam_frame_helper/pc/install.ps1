@@ -10,6 +10,8 @@
 param([string]$Frame = '')
 
 $ErrorActionPreference = 'Stop'
+$IsRu = (Get-UICulture).TwoLetterISOLanguageName -eq 'ru'
+function T($ru, $en) { if ($IsRu) { $ru } else { $en } }
 $Dir = Join-Path $env:USERPROFILE 'SteamFrameHelper'
 $ConfigFile = Join-Path $Dir 'frame.txt'
 $SshExe = Join-Path $env:SystemRoot 'System32\OpenSSH\ssh.exe'
@@ -26,11 +28,11 @@ if (Test-Path -LiteralPath $ConfigFile) {
     $current = "$(Get-Content -LiteralPath $ConfigFile -TotalCount 1)".Trim()
 }
 if (-not $Frame) {
-    $hint = if ($current) { " [$current]" } else { ' (например steamos@192.168.0.50)' }
-    $Frame = (Read-Host "Адрес Steam Frame: пользователь@IP$hint").Trim()
+    $hint = if ($current) { " [$current]" } else { ' (' + (T 'например' 'e.g.') + ' steamos@192.168.0.50)' }
+    $Frame = (Read-Host (T "Адрес Steam Frame: пользователь@IP$hint" "Steam Frame address: user@IP$hint")).Trim()
     if (-not $Frame) { $Frame = $current }
 }
-if (-not $Frame) { throw 'Адрес Frame не указан' }
+if (-not $Frame) { throw (T 'Адрес Frame не указан' 'Frame address not set') }
 if (-not $Frame.Contains('@')) { $Frame = "steamos@$Frame" }
 Set-Content -LiteralPath $ConfigFile -Value $Frame -Encoding ASCII
 Write-Output "Frame: $Frame"
@@ -43,14 +45,14 @@ if (-not (Test-Path -LiteralPath $key)) {
 }
 & $SshExe -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new $Frame true 2>$null
 if ($LASTEXITCODE -ne 0) {
-    Write-Output 'Добавляю ключ на Frame — ssh спросит пароль пользователя Frame (один раз).'
+    Write-Output (T 'Добавляю ключ на Frame — ssh спросит пароль пользователя Frame (один раз).' 'Adding the key to the Frame. ssh will ask for the Frame user password (once).')
     $pub = Get-Content -LiteralPath "$key.pub" -Raw
     $pub | & $SshExe -o StrictHostKeyChecking=accept-new $Frame `
         'umask 077; mkdir -p ~/.ssh; cat >> ~/.ssh/authorized_keys'
     & $SshExe -o BatchMode=yes -o ConnectTimeout=5 $Frame true
-    if ($LASTEXITCODE -ne 0) { throw 'Не удалось войти на Frame по ключу. Проверь адрес и что на Frame включён SSH.' }
+    if ($LASTEXITCODE -ne 0) { throw (T 'Не удалось войти на Frame по ключу. Проверь адрес и что на Frame включён SSH.' 'Could not sign in to the Frame with the key. Check the address and that SSH is turned on on the Frame.') }
 }
-Write-Output 'SSH по ключу работает.'
+Write-Output (T 'SSH по ключу работает.' 'SSH key login works.')
 
 # ---------- 3. agent + shortcut ----------
 # Scripts come from this folder (release archive) or, when run as a one-liner, from GitHub.
@@ -65,4 +67,4 @@ if (-not $src) {
 }
 & (Join-Path $src 'install_pc_agent.ps1')
 & (Join-Path $src 'install_frame_send.ps1')
-Write-Output 'Готово.'
+Write-Output (T 'Готово.' 'Done.')

@@ -19,6 +19,9 @@ import shutil
 import sys
 import time
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from i18n import T  # noqa: E402
+
 STATE = os.path.expanduser("~/.local/share/steam_frame_helper")
 QUEUE = os.path.join(STATE, "to-pc")
 HEARTBEAT = os.path.join(STATE, "pc_heartbeat")
@@ -48,7 +51,7 @@ def add(paths):
     for p in paths:
         p = os.path.abspath(p.rstrip("/"))
         if not os.path.exists(p):
-            print(f"Нет такого пути: {p}", file=sys.stderr)
+            print(T("Нет такого пути: {p}", "No such path: {p}").format(p=p), file=sys.stderr)
             continue
         # A part file first, renamed when complete: the agent never sees half an item.
         target = unique_target(os.path.basename(p))
@@ -61,7 +64,7 @@ def add(paths):
             except OSError:
                 shutil.copy2(p, part)
         os.rename(part, target)
-        print(f"В очереди: {os.path.basename(target)}")
+        print(T("В очереди: {name}", "Queued: {name}").format(name=os.path.basename(target)))
 
 
 def size_of(path):

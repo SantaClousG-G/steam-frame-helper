@@ -8,6 +8,7 @@
 set -u
 
 TOOLS="$(cd "$(dirname "$0")" && pwd)"
+. "$TOOLS/i18n.sh"
 CONFIG="$HOME/.config/steam_frame_helper/screenshots.json"
 STATE="$HOME/.local/share/steam_frame_helper"
 HEARTBEAT="$STATE/pc_heartbeat"
@@ -77,12 +78,12 @@ pc_info() {
     if [ -f "$HEARTBEAT" ]; then
         age=$(( $(date +%s) - $(stat -c %Y "$HEARTBEAT") ))
         if [ "$age" -lt 60 ]; then
-            echo "ПК на связи (${age} с назад)"
+            echo "$(t "ПК на связи (${age} с назад)" "PC connected (${age} s ago)")"
         else
-            echo "ПК не забирал файлы $((age / 60)) мин — агент на ПК выключен?"
+            echo "$(t "ПК не забирал файлы $((age / 60)) мин — агент на ПК выключен?" "The PC has not picked up files for $((age / 60)) min. Is the PC agent off?")"
         fi
     else
-        echo "агент на ПК ещё не подключался"
+        echo "$(t "агент на ПК ещё не подключался" "the PC agent has not connected yet")"
     fi
 }
 
@@ -92,16 +93,17 @@ case "$cmd" in
         if [ "$(get "$target")" = 1 ]; then
             echo "installed=1"
             if [ "$target" = local ]; then
-                echo "info=Копируются в ~/Pictures/Screenshots  ·  служба: $active"
+                echo "info=$(t "Копируются в ~/Pictures/Screenshots  ·  служба: $active" "Copied to ~/Pictures/Screenshots  ·  service: $active")"
             else
-                echo "info=Копируются на ПК в Изображения\\SteamFrame  ·  $(pc_info)  ·  в очереди: $(find "$STATE/outbox" -name '*.jpg' 2>/dev/null | wc -l)"
+                queued="$(find "$STATE/outbox" -name '*.jpg' 2>/dev/null | wc -l)"
+                echo "info=$(t "Копируются на ПК в Изображения\\SteamFrame  ·  $(pc_info)  ·  в очереди: $queued" "Copied to the PC in Pictures\\SteamFrame  ·  $(pc_info)  ·  queued: $queued")"
             fi
         else
             echo "installed=0"
             if [ "$target" = local ]; then
-                echo "info=Выключено (папка ~/Pictures/Screenshots на Frame)"
+                echo "info=$(t "Выключено (папка ~/Pictures/Screenshots на Frame)" "Off (folder ~/Pictures/Screenshots on the Frame)")"
             else
-                echo "info=Выключено (папка Изображения\\SteamFrame на ПК)"
+                echo "info=$(t "Выключено (папка Изображения\\SteamFrame на ПК)" "Off (folder Pictures\\SteamFrame on the PC)")"
             fi
         fi
         ;;

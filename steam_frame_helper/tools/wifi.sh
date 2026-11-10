@@ -8,6 +8,9 @@
 
 set -u
 
+TOOLS="$(cd "$(dirname "$0")" && pwd)"
+. "$TOOLS/i18n.sh"
+
 OVERRIDE=/etc/NetworkManager/conf.d/99-zz-sfh-wifi-powersave.conf
 
 ifaces() {
@@ -34,10 +37,10 @@ case "${1:-status}" in
         s="$(state)"
         if [ "$s" = "off" ]; then
             echo "installed=1"
-            echo "info=Энергосбережение выключено (меньше задержка при стриминге)"
+            echo "info=$(t "Энергосбережение выключено (меньше задержка при стриминге)" "Power saving is off (lower latency when streaming)")"
         else
             echo "installed=0"
-            echo "info=Энергосбережение включено (${s:-нет Wi-Fi})"
+            echo "info=$(t "Энергосбережение включено (${s:-нет Wi-Fi})" "Power saving is on (${s:-no Wi-Fi})")"
         fi
         ;;
     install)

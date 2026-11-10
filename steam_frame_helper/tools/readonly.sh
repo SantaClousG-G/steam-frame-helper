@@ -5,15 +5,18 @@
 
 set -u
 
+TOOLS="$(cd "$(dirname "$0")" && pwd)"
+. "$TOOLS/i18n.sh"
+
 case "${1:-status}" in
     status)
         s="$(steamos-readonly status 2>/dev/null)"
         if [ "$s" = "disabled" ]; then
             echo "installed=1"
-            echo "info=Системный раздел доступен для записи"
+            echo "info=$(t "Системный раздел доступен для записи" "System partition is writable")"
         else
             echo "installed=0"
-            echo "info=Системный раздел только для чтения (${s:-неизвестно})"
+            echo "info=$(t "Системный раздел только для чтения (${s:-неизвестно})" "System partition is read-only (${s:-unknown})")"
         fi
         ;;
     install)
