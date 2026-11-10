@@ -416,20 +416,32 @@ function disconnectOne(p, serial) {
 
 // Steam's own Frame controller icon (the one next to each controller's battery level):
 // IndividualSteamFrameController({ bIsLeftController }). Fallback: a letter.
-function findControllerIcon() {
+// A named icon component from Steam's icon module (e.g. "SteamFrameIcon"), or null.
+function findSteamIcon(name) {
   let req = null;
   window.webpackChunksteamui.push([[Symbol("sfh-frame-icon")], {}, r => { req = r; }]);
   if (!req) return null;
   for (const id of Object.keys(req.m)) {
-    if (!req.m[id].toString().includes("IndividualSteamFrameController")) continue;
+    if (!req.m[id].toString().includes(name)) continue;
     try {
-      const icon = req(id).IndividualSteamFrameController;
+      const icon = req(id)[name];
       if (typeof icon === "function") return icon;
     } catch (e) {
       // not the icon module
     }
   }
   return null;
+}
+
+function findControllerIcon() {
+  return findSteamIcon("IndividualSteamFrameController");
+}
+
+// Plugin icon in the Decky list: Steam's own Steam Frame headset icon; the "D" logo
+// stays as a fallback (and on the "Decky" item in the left menu).
+function PluginIcon() {
+  const Icon = React.useMemo(() => findSteamIcon("SteamFrameIcon"), []);
+  return Icon ? h(Icon, { width: "1em", height: "1em" }) : h(DeckyIcon);
 }
 
 // Steam's icon is an SVG without a size of its own (it fills its parent): put it in a
@@ -580,7 +592,7 @@ export default DFL.definePlugin(() => {
       h(HudPanel),
       h(ControllersPanel),
       h(PlacementPanel)),
-    icon: h(DeckyIcon),
+    icon: h(PluginIcon),
     onDismount() {
       placement.removeAll();
       delete window.__sfhPlacement;
