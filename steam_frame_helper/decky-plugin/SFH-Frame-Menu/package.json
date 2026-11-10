@@ -1,0 +1,8 @@
+{
+  "name": "sfh-frame-menu",
+  "version": "0.3.7",
+  "description": "Decky entry in the Steam Frame left menu",
+  "type": "module",
+  "author": "Steam Frame Helper",
+  "license": "MIT"
+}

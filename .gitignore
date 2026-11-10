@@ -1,0 +1,13 @@
+# Not part of the public release (see README → AmneziaVPN)
+private/
+
+# local state written by the app on the device
+steam_frame_helper/ui_stream.token
+steam_frame_helper/screenshots.json
+steam_frame_helper/amneziavpn/
+steam_frame_helper/tools/amnezia*.sh
+
+# build output
+/dist/
+__pycache__/
+*.pyc

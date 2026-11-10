@@ -1,0 +1,6 @@
+# Everything that runs on the Frame needs LF line endings
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.so binary
+*.zst binary

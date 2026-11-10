@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Steam Frame Helper
+Comment=System tweaks for Steam Frame
+Exec=/usr/bin/python3 @APP_DIR@/steam_frame_helper.py
+Path=@APP_DIR@
+Icon=preferences-system
+Categories=Utility;Game;
+Terminal=false
+StartupNotify=true

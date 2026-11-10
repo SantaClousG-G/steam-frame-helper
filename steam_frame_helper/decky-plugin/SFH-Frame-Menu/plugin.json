@@ -1,0 +1,11 @@
+{
+  "name": "SFH Frame Menu",
+  "author": "Steam Frame Helper",
+  "flags": [],
+  "api_version": 2,
+  "publish": {
+    "tags": ["frame", "menu"],
+    "description": "Добавляет Decky в левое меню и быстрые настройки Steam Frame; переключатель VR HUD и выключение контроллеров.",
+    "image": ""
+  }
+}
