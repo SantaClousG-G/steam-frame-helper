@@ -149,6 +149,7 @@ Needs root. Lock the partition again when you are done. SteamOS updates may rese
 
 | Button | What happens |
 |---|---|
+| Stop streaming | Ends PC streaming by stopping the Frame's streaming client (`vrlink`). Asks "Stop streaming from the PC?" first. Works even when the headset's "Stop streaming" button no longer responds. |
 | Restart Steam | Restarts the Steam client (the user service `steam.service`). A running game or VR session closes and the Steam UI reloads. There is no confirmation. |
 | Reboot | Reboots the Frame. Asks "Reboot Steam Frame?" first. Needs root. |
 
@@ -413,6 +414,7 @@ SteamOS updates may reset changes on the system partition.
 
 | Problem | What to do |
 |---|---|
+| The headset's "Stop streaming" button does nothing | This happens when Decky and the Steam UI restarted during a stream (switching the store, installing or repairing Decky): the UI forgets the running session. Press "Stop streaming" in SFH (Tools → System → Quick actions). The headset button works again for the next stream. |
 | "No root access (sudo/pkexec)" | The `steamos` user has no password. Set one with `passwd` in Konsole. After that the app can show the system password dialog. |
 | The Decky item is not visible in the headset | On the Plugins tab, tick the place you want in "Where to show Decky in the headset" (with both cleared, Decky is not shown in the headset). Close and reopen the menu (it refreshes when it opens). Make sure Steam is running and the SFH Frame Menu plugin is installed. Press "Repair" in Decky Loader. You can also open Decky with "Open in headset". |
 | The "Left menu" / "Quick Settings" boxes are greyed out | Steam must be running and the SFH Frame Menu plugin must be loaded. Press "Repair", then "Refresh list". |

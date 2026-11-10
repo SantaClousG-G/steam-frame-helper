@@ -55,7 +55,9 @@ EN = {
     "Разблокировать": "Unlock",
     "Заблокировать": "Lock",
     "Быстрые действия": "Quick actions",
-    "Перезапуск Steam, перезагрузка": "Restart Steam, reboot",
+    "Трансляция с ПК, Steam, перезагрузка": "PC streaming, Steam, reboot",
+    "Прервать трансляцию": "Stop streaming",
+    "Прервать трансляцию с ПК?": "Stop streaming from the PC?",
     "Перезапустить Steam": "Restart Steam",
     "Перезагрузить": "Reboot",
     "Перезагрузить Steam Frame?": "Reboot Steam Frame?",
@@ -223,8 +225,8 @@ EN = {
     "Не удалось прочитать настройки Decky": "Couldn't read Decky settings",
     "Адрес магазина должен начинаться с https://": "The store address must start with https://",
     "Подключить сторонний магазин?": "Connect a third-party store?",
-    "Плагины из стороннего магазина не проверяет команда Decky. Ставьте только то, чему доверяете.\n\n{url}":
-        "Plugins from a third-party store are not reviewed by the Decky team. Install only what you trust.\n\n{url}",
+    "Плагины из стороннего магазина не проверяет команда Decky. Ставьте только то, чему доверяете. Decky и интерфейс Steam перезапустятся.\n\n{url}":
+        "Plugins from a third-party store are not reviewed by the Decky team. Install only what you trust. Decky and the Steam UI will restart.\n\n{url}",
     "Подключение стороннего магазина": "Connecting the third-party store",
     "Возврат к официальному магазину": "Switching back to the official store",
     "Поставить регион RU?": "Set region RU?",

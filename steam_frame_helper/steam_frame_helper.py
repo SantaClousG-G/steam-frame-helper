@@ -508,7 +508,8 @@ class DeckyStoreRow(Gtk.Box):
             return
         if not confirm(self.get_toplevel(), _("Подключить сторонний магазин?"),
                        _("Плагины из стороннего магазина не проверяет команда Decky. "
-                         "Ставьте только то, чему доверяете.\n\n{url}").format(url=url)):
+                         "Ставьте только то, чему доверяете. Decky и интерфейс Steam "
+                         "перезапустятся.\n\n{url}").format(url=url)):
             return
 
         def done(res):
@@ -560,6 +561,7 @@ class RegionTool(StatusTool):
 
 class QuickActions(Gtk.Box):
     ACTIONS = [
+        (_("Прервать трансляцию"), "stop-stream", False, _("Прервать трансляцию с ПК?")),
         (_("Перезапустить Steam"), "restart-steam", False, None),
         (_("Перезагрузить"), "reboot", True, _("Перезагрузить Steam Frame?")),
     ]
@@ -568,7 +570,7 @@ class QuickActions(Gtk.Box):
         super().__init__(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         self.get_style_context().add_class("tool-row")
         text, sub = title_block(_("Быстрые действия"))
-        sub.set_text(_("Перезапуск Steam, перезагрузка"))
+        sub.set_text(_("Трансляция с ПК, Steam, перезагрузка"))
         self.pack_start(text, True, True, 0)
         for label, cmd, root, question in self.ACTIONS:
             btn = Gtk.Button(label=label)
