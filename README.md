@@ -1,59 +1,53 @@
+English | [Русский](README.ru.md)
+
 # Steam Frame Helper
 
-> Черновик. Подробная инструкция и английская версия — в работе.
+A set of tweaks and utilities for the **Steam Frame** (SteamOS, aarch64) with a GTK3 window. Every feature is turned on and off with one button, and the app tells you what it changes on the system.
 
-Набор твиков и утилит для **Steam Frame** (SteamOS, aarch64) с графическим окном на GTK3.
-Каждая функция включается и выключается одной кнопкой.
+Full documentation: **[docs/GUIDE.en.md](docs/GUIDE.en.md)** (every tab, section and button).
 
-## Возможности
+## Features
 
-Разделы во вкладках сворачиваются, состояние запоминается.
+Sections inside tabs collapse and remember their state. The language switcher (Русский / English) is in the window header, and the status line at the bottom shows what the app is doing.
 
-- **Инструменты**
-  - регион Wi-Fi (сохраняется после перезагрузки), Wi-Fi без энергосбережения
-  - **статистика соединения с ПК** — маленькое окно в шлеме с данными стрима в реальном
-    времени: пинг и потери по данным самого Steam, трафик, сигнал и скорость связи
-    адаптера Steam и домашнего Wi-Fi
-  - запись в системный раздел (readonly вкл/выкл), перезапуск Steam, перезагрузка
-- **Плагины** — **Decky Loader** для ARM64 и управление плагинами Decky. В комплекте плагин
-  *SFH Frame Menu*: Decky в левом меню Frame и в быстрых настройках, переключатель
-  статистики соединения, выключение левого / правого / обоих контроллеров
-- **Игры** и **Приложения** — установленные игры Steam и Flatpak-приложения
-- **Android** — установка APK (+ OBB) как VR-приложения в библиотеку Steam через Lepton
-- **Передача** — копирование скриншотов на Frame и на ПК, отправка файлов с Frame на ПК
-- **Разработка** — интерфейс Steam в браузере на ПК, Wi-Fi без запроса пароля в RDP-сессии
+- **Tools**
+  - Wi-Fi region (kept after reboot) and Wi-Fi without power saving
+  - **PC connection stats (in headset)**: a small window in the headset with live stream data: ping and packet loss as measured by Steam, traffic, signal and link speed of the Steam wireless adapter and your home Wi-Fi
+  - system partition write access (Unlock / Lock), Restart Steam, Reboot
+- **Plugins**: **Decky Loader** for ARM64 and Decky plugin management. The bundled *SFH Frame Menu* plugin adds Decky to the Frame left menu and Quick Settings, a switch for the connection stats, and buttons to turn off the left, right or both controllers
+- **Games** and **Apps**: save backups, shader cache and prefix cleanup for Steam games; Flatpak apps from Flathub
+- **Android**: install an APK (+ OBB) as a VR app in your Steam library through Lepton
+- **Transfer**: copy screenshots to the Frame and to your PC, send files from the Frame to your PC
+- **Developer**: the Steam UI in a PC browser, Wi-Fi without a password prompt in an RDP session
 
-## Установка на Steam Frame
+## Install on the Steam Frame
 
-В режиме рабочего стола откройте Konsole (или зайдите по SSH) и выполните:
+In Desktop Mode, open Konsole (or log in over SSH) and run:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/SantaClousG-G/steam-frame-helper/main/install.sh | bash
 ```
 
-Приложение появится в меню как **Steam Frame Helper**. Повторный запуск команды обновляет его.
-Удаление: `bash install.sh --uninstall` (твики системы остаются как были).
+The app appears in the application menu as **Steam Frame Helper**. Run the same command again to update (your local settings and files are kept). To remove the app: `bash install.sh --uninstall` (system tweaks stay as they were).
 
-Часть функций меняет системные настройки и использует `sudo`: пароль спросит системное окно.
+The `steamos` user has no password by default. Features that change the system need root: the app tries passwordless `sudo`, then a system password dialog (`pkexec`). Set a password once with `passwd` in Konsole.
 
-## Часть для ПК (Windows)
+## PC part (Windows 10/11)
 
-Нужна для копирования скриншотов на ПК, приёма файлов с Frame и ярлыка «Отправить на Frame».
-На Frame должен быть включён SSH (`passwd`, затем `sudo systemctl enable --now sshd`).
-Скачайте архив релиза, распакуйте и выполните в PowerShell:
+Needed for copying screenshots to the PC, receiving files from the Frame, and the "Send to Frame" desktop shortcut. On the Frame, set a password with `passwd` and turn on SSH: `sudo systemctl enable --now sshd`.
+
+Download the release archive, unzip it and run in PowerShell:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File steam_frame_helper\pc\install.ps1
 ```
 
-Установщик спросит адрес Frame (`steamos@IP`), настроит вход по SSH-ключу (пароль Frame
-спросит один раз) и поставит агент и ярлык.
+The installer asks for the Frame address (`user@IP`, for example `steamos@192.168.0.50`), sets up SSH key login (it asks the Frame password once) and installs a hidden PC agent and the shortcut. Details are in the [guide](docs/GUIDE.en.md#pc-part).
 
 ## AmneziaVPN
 
-Нативная сборка AmneziaVPN для ARM64 в публичный релиз не входит.
+A native ARM64 build of AmneziaVPN is not part of the public release.
 
-## Лицензия
+## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE): можно использовать, изучать, изменять и
-распространять, в том числе свои доработки, — но не в коммерческих целях.
+[PolyForm Noncommercial 1.0.0](LICENSE): you may use, study, modify and share it, including your own changes, but not for commercial purposes.

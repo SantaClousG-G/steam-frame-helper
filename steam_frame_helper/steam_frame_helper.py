@@ -452,6 +452,16 @@ class RegionTool(StatusTool):
     def install_args(self):
         return [self.extra.get_active_id()]
 
+    def act(self, cmd, label):
+        # With RU the Frame's hostapd can't start the SoftAP: the Steam wireless adapter
+        # stops connecting (seen on a real Frame).
+        if cmd == "install" and self.extra.get_active_id() == "RU" and not confirm(
+                self.get_toplevel(), _("Поставить регион RU?"),
+                _("С регионом RU беспроводной адаптер Steam на Steam Frame перестаёт "
+                  "подключаться. Для стрима выберите другой регион.")):
+            return
+        super().act(cmd, label)
+
     def on_status(self, info):
         if info.get("configured"):
             self.extra.set_active_id(info["configured"])

@@ -2,7 +2,7 @@
 # VR HUD (network / streaming stats overlay) for Steam Frame Helper.
 # Usage: vr_hud.sh status | install | remove | toggle
 #   install: user service sfh-vr-hud, started now and at every login
-#   toggle:  show / hide the HUD (same as clicking both thumbsticks)
+#   toggle:  show / hide the overlay (same as the switch in the Decky quick menu)
 # Runs as the user.
 
 set -u

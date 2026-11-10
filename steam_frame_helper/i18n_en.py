@@ -216,4 +216,7 @@ EN = {
     "Интерфейс Steam в браузере на ПК": "Steam UI in a PC browser",
     "RDP: Wi-Fi без запроса пароля": "RDP: Wi-Fi without a password prompt",
     "Разработка": "Developer",
+    "Поставить регион RU?": "Set region RU?",
+    "С регионом RU беспроводной адаптер Steam на Steam Frame перестаёт подключаться. Для стрима выберите другой регион.":
+        "With region RU, the Steam wireless adapter on the Steam Frame stops connecting. Pick another region for streaming.",
 }
