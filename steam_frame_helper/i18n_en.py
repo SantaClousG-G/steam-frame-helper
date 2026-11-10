@@ -71,7 +71,6 @@ EN = {
         "The headset menu will update the next time it opens",
     "Нужен запущенный Steam и плагин SFH Frame Menu в Decky":
         "Steam must be running and the SFH Frame Menu plugin must be installed in Decky",
-    "Decky должен остаться хотя бы в одном месте": "Decky must stay in at least one place",
     "Decky в шлеме: место показа": "Decky in the headset: where to show",
     "Установленные плагины": "Installed plugins",
     "Плагины Decky": "Decky plugins",
@@ -216,6 +215,18 @@ EN = {
     "Интерфейс Steam в браузере на ПК": "Steam UI in a PC browser",
     "RDP: Wi-Fi без запроса пароля": "RDP: Wi-Fi without a password prompt",
     "Разработка": "Developer",
+    "Сторонний магазин плагинов": "Third-party plugin store",
+    "Подключить": "Connect",
+    "Вернуть официальный": "Use official store",
+    "Подключён сторонний: {url}": "Third-party store connected: {url}",
+    "Сейчас официальный магазин Decky": "Decky's official store is in use",
+    "Не удалось прочитать настройки Decky": "Couldn't read Decky settings",
+    "Адрес магазина должен начинаться с https://": "The store address must start with https://",
+    "Подключить сторонний магазин?": "Connect a third-party store?",
+    "Плагины из стороннего магазина не проверяет команда Decky. Ставьте только то, чему доверяете.\n\n{url}":
+        "Plugins from a third-party store are not reviewed by the Decky team. Install only what you trust.\n\n{url}",
+    "Подключение стороннего магазина": "Connecting the third-party store",
+    "Возврат к официальному магазину": "Switching back to the official store",
     "Поставить регион RU?": "Set region RU?",
     "С регионом RU беспроводной адаптер Steam на Steam Frame перестаёт подключаться. Для стрима выберите другой регион.":
         "With region RU, the Steam wireless adapter on the Steam Frame stops connecting. Pick another region for streaming.",

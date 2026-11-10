@@ -540,14 +540,12 @@ function PlacementPanel() {
     placement.listeners.add(setValue);
     return () => placement.listeners.delete(setValue);
   }, []);
-  // At least one place stays on: otherwise Decky (and this switch) can't be reached
-  // from the headset any more (only from Steam Frame Helper on the desktop).
+  // Both may be off: Decky is then opened only from Steam Frame Helper ("Open in headset").
   const row = (key, label, description) => h(DFL.PanelSectionRow, null,
     h(DFL.ToggleField, {
       label,
       description,
       checked: value[key],
-      disabled: value[key] && !value[key === "menu" ? "qam" : "menu"],
       onChange: checked => placement.set({ ...value, [key]: checked }),
     }));
   return h(DFL.PanelSection, { title: T("Где показывать Decky", "Where to show Decky") },
@@ -559,7 +557,8 @@ function PlacementPanel() {
         "A Decky tab in the Quick Settings popup on the bar")),
     h(DFL.PanelSectionRow, null,
       h("div", { style: { fontSize: "12px", opacity: 0.6 } },
-        T("Меню обновится при следующем открытии.", "The menu updates the next time it opens."))));
+        T("Меню обновится при следующем открытии. Если выключить оба, Decky открывается только из Steam Frame Helper (кнопка «Открыть в шлеме»).",
+          "The menu updates the next time it opens. With both off, Decky opens only from Steam Frame Helper (the “Open in headset” button)."))));
 }
 
 // ---------- plugin ----------

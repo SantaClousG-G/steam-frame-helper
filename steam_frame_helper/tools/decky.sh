@@ -3,12 +3,13 @@
 # Mirrors SteamDeckHomebrew/decky-installer cli/install_release.sh,
 # plus SHA-256 verification against the GitHub release digest.
 # Usage: decky.sh status | install | repair | remove
+#        decky.sh store-status | store-set <url> | store-official
 # All commands require root (settings and service files are root-owned).
 
 set -u
 
-# Third-party plugin store (Decky "Custom" store channel).
-STORE_URL=https://repo.steamdeckbase.org/decky/plugins
+# Plugin store: Decky's official store by default. A third-party store (Decky "Custom"
+# channel) is set only on request: decky.sh store-set <url>; store-official goes back.
 STORE_CUSTOM=2
 
 RELEASES_API=https://api.github.com/repos/SteamDeckHomebrew/decky-loader/releases
@@ -129,7 +130,6 @@ do_install() {
     echo "$version" > "$SERVICES/.loader.version"
 
     write_service
-    set_store
     install_bundled_plugins
     systemctl daemon-reload
     systemctl enable --now plugin_loader
@@ -184,43 +184,85 @@ EOF
     fi
 }
 
-# Decky reads settings at start, so the service must be stopped while editing.
-set_store() {
-    python3 - "$SETTINGS" "$STORE_URL" "$STORE_CUSTOM" <<'PY'
+# Decky reads settings at start, so the service is stopped while editing.
+# write_store <channel> [url]: channel 0 = official, 2 = custom (third-party) with url.
+write_store() {
+    python3 - "$SETTINGS" "$1" "${2:-}" <<'PY'
 import json, os, sys
-path, url, channel = sys.argv[1], sys.argv[2], int(sys.argv[3])
+path, channel, url = sys.argv[1], int(sys.argv[2]), sys.argv[3]
 try:
     with open(path) as f:
         data = json.load(f)
 except (OSError, ValueError):
     data = {}
 data["store"] = channel
-data["store-url"] = url
-data["store_select.warn.third_party"] = True
+if url:
+    data["store-url"] = url
+    data["store_select.warn.third_party"] = True
 tmp = path + ".tmp"
 with open(tmp, "w") as f:
     json.dump(data, f, indent=4)
 os.replace(tmp, path)
 PY
+    chown "$TARGET_USER:" "$SETTINGS" 2>/dev/null
 }
 
-store_name() {
-    python3 - "$SETTINGS" "$STORE_URL" "$STORE_CUSTOM" "$(t "свой: " "custom: ")" "$(t "официальный" "official")" <<'PY'
+# store=official|testing|custom and url=<custom store address> (key=value lines)
+store_status() {
+    python3 - "$SETTINGS" "$STORE_CUSTOM" <<'PY'
 import json, sys
-path, url, channel = sys.argv[1], sys.argv[2], int(sys.argv[3])
-custom_label, official_label = sys.argv[4], sys.argv[5]
+path, custom = sys.argv[1], int(sys.argv[2])
 try:
     with open(path) as f:
         data = json.load(f)
 except (OSError, ValueError):
     data = {}
-if data.get("store") == channel and data.get("store-url") == url:
-    print("steamdeckbase")
-elif data.get("store") == channel:
-    print(custom_label + str(data.get("store-url")))
-else:
-    print({0: official_label, 1: "testing"}.get(data.get("store", 0), "?"))
+channel = data.get("store", 0)
+print("store=" + {0: "official", 1: "testing", custom: "custom"}.get(channel, "official"))
+print("url=" + (str(data.get("store-url", "")) if channel == custom else ""))
 PY
+}
+
+store_name() {
+    local key value store="" url=""
+    while IFS='=' read -r key value; do
+        case "$key" in
+            store) store="$value" ;;
+            url) url="$value" ;;
+        esac
+    done < <(store_status)
+    case "$store" in
+        custom) printf '%s' "$(t "сторонний" "third-party") ($url)" ;;
+        testing) printf '%s' "testing" ;;
+        *) printf '%s' "$(t "официальный" "official")" ;;
+    esac
+}
+
+restart_if_running() {
+    if systemctl is-enabled --quiet plugin_loader 2>/dev/null; then
+        systemctl restart plugin_loader
+    fi
+}
+
+do_store_set() {
+    local url="${1:-}"
+    case "$url" in
+        https://?* | http://?*) ;;
+        *) echo "$(t "Адрес магазина должен начинаться с https://" "The store address must start with https://")" >&2; exit 1 ;;
+    esac
+    mkdir -p "$(dirname "$SETTINGS")"
+    systemctl stop plugin_loader 2>/dev/null
+    write_store "$STORE_CUSTOM" "$url"
+    restart_if_running
+    echo "$(t "Подключён сторонний магазин: $url" "Third-party store connected: $url")"
+}
+
+do_store_official() {
+    mkdir -p "$(dirname "$SETTINGS")"
+    systemctl stop plugin_loader 2>/dev/null
+    write_store 0
+    restart_if_running
+    echo "$(t "Включён официальный магазин Decky" "Decky's official store is on")"
 }
 
 do_repair() {
@@ -232,13 +274,12 @@ do_repair() {
     systemctl stop plugin_loader 2>/dev/null
     prepare_dirs
     [ -f "$SYSTEM_SERVICE" ] || write_service
-    set_store
     install_bundled_plugins
     systemctl daemon-reload
     systemctl enable plugin_loader
     systemctl restart plugin_loader
     shortcut add
-    echo "$(t "Decky починен: служба, права, магазин, ярлык" "Decky repaired: service, permissions, store, shortcut")"
+    echo "$(t "Decky починен: служба, права, ярлык" "Decky repaired: service, permissions, shortcut")"
 }
 
 # "Decky" entry in the Steam library: Frame has no Quick Access Menu in VR.
@@ -261,8 +302,11 @@ case "${1:-status}" in
     install) do_install ;;
     repair) do_repair ;;
     remove) do_remove ;;
+    store-status) store_status ;;
+    store-set) do_store_set "${2:-}" ;;
+    store-official) do_store_official ;;
     *)
-        echo "Usage: $0 status | install | repair | remove" >&2
+        echo "Usage: $0 status | install | repair | remove | store-status | store-set <url> | store-official" >&2
         exit 1
         ;;
 esac

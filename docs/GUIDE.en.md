@@ -167,13 +167,23 @@ The subtitle shows the Decky version, the service state, whether port 1337 is re
 | Button | What happens |
 |---|---|
 | Open in headset | Opens the Decky panel in the headset, on a page of the Steam UI. Steam must be running. This is a fallback: the left menu or Quick Settings is more convenient (see below). |
-| Install / update | Downloads the latest stable Decky from GitHub and verifies its SHA-256 checksum (a mismatch cancels the install). Creates the `~/homebrew` folder and the `plugin_loader` system service and starts it. Enables the Steam UI debugging port that Decky needs. Installs the bundled SFH Frame Menu plugin. Sets the third-party plugin store. Adds a "Decky" shortcut to the Steam library (Steam restarts for a few seconds to do this). Pressing it again updates Decky to the latest version. |
-| Repair | Does not download Decky again. It stops the service, checks folders and permissions, restores the service file, the store setting, the bundled plugin and the library shortcut, then restarts the service. If the Decky file is missing, it reinstalls Decky. Steam restarts as well. |
+| Install / update | Downloads the latest stable Decky from GitHub and verifies its SHA-256 checksum (a mismatch cancels the install). Creates the `~/homebrew` folder and the `plugin_loader` system service and starts it. Enables the Steam UI debugging port that Decky needs. Installs the bundled SFH Frame Menu plugin. The plugin store stays the official one. Adds a "Decky" shortcut to the Steam library (Steam restarts for a few seconds to do this). Pressing it again updates Decky to the latest version. |
+| Repair | Does not download Decky again. It stops the service, checks folders and permissions, restores the service file, the bundled plugin and the library shortcut, then restarts the service. If the Decky file is missing, it reinstalls Decky. Steam restarts as well. |
 | Remove | Removes the Decky service and loader, and the "Decky" library shortcut. Installed plugins in `~/homebrew/plugins` are kept. |
 
 All buttons except "Open in headset" need root.
 
-The Store is a third-party one (not Decky's official store). SFH sets this on install and repair.
+#### Third-party plugin store
+
+By default Decky uses its official plugin store. Here you can connect a third-party store (for example, SteamDeckBase) or go back to the official one.
+
+| Control | What happens |
+|---|---|
+| List with an input field | Store addresses: SteamDeckBase, stores you connected before, and the current one. Pick one from the list or type your own address (starts with `https://`). |
+| Connect | Asks for confirmation, then switches Decky to the chosen third-party store and restarts the Decky service. The address is remembered in the list. Needs root. |
+| Use official store | Switches back to Decky's official store and restarts the Decky service. Active when a third-party store is connected. Needs root. |
+
+The subtitle shows which store is in use. Plugins from a third-party store are not reviewed by the Decky team — install only what you trust. Install / update and Repair do not change the store.
 
 #### Where to show Decky in the headset
 
@@ -184,7 +194,7 @@ The Frame has no classic Quick Access Menu in VR, so the bundled SFH Frame Menu 
 | Left menu | Adds a "Decky" item to the Frame left menu, next to Settings. |
 | Quick Settings | Adds a Decky tab to the Quick Settings popup on the Frame bar. |
 
-At least one box always stays on (otherwise you could not reach Decky from the headset); trying to clear the last one shows "Decky must stay in at least one place". The headset menu will update the next time it opens. The boxes are active only when Steam is running and the SFH Frame Menu plugin is loaded in Decky; otherwise the subtitle says "Steam must be running and the SFH Frame Menu plugin must be installed in Decky". You can change the same setting inside the plugin, in the headset.
+You can clear both boxes: Decky is then not shown anywhere in the headset and opens only from SFH with "Open in headset". The headset menu will update the next time it opens. The boxes are active only when Steam is running and the SFH Frame Menu plugin is loaded in Decky; otherwise the subtitle says "Steam must be running and the SFH Frame Menu plugin must be installed in Decky". You can change the same setting inside the plugin, in the headset.
 
 ### Installed plugins section
 
@@ -327,7 +337,7 @@ The plugin has three sections.
 |---|---|
 | Connection stats | The "Show in headset" switch shows or hides the connection stats window (the same as "Show / hide" in SFH). If the stats are not running, the switch is disabled and the hint tells you to turn them on in SFH (Tools → Network). |
 | Turn off controllers | Three buttons with controller icons: left, both, right. They turn off the matching Frame controllers. A button is disabled when that controller is not connected. To turn a controller back on, press the Steam button. If this Steam version does not support it, the section says "Not available in this Steam version". |
-| Where to show Decky | Two switches: "Left menu" (a "Decky" item on the left, next to Settings) and "Quick Settings" (a Decky tab in the Quick Settings popup). At least one stays on. The menu updates the next time it opens. The same setting is available in the SFH window. |
+| Where to show Decky | Two switches: "Left menu" (a "Decky" item on the left, next to Settings) and "Quick Settings" (a Decky tab in the Quick Settings popup). You can turn both off; Decky then opens only from SFH. The menu updates the next time it opens. The same setting is available in the SFH window. |
 
 ## PC part
 
@@ -404,7 +414,7 @@ SteamOS updates may reset changes on the system partition.
 | Problem | What to do |
 |---|---|
 | "No root access (sudo/pkexec)" | The `steamos` user has no password. Set one with `passwd` in Konsole. After that the app can show the system password dialog. |
-| The Decky item is not visible in the headset | On the Plugins tab, at least one box in "Where to show Decky in the headset" must be on. Close and reopen the menu (it refreshes when it opens). Make sure Steam is running and the SFH Frame Menu plugin is installed. Press "Repair" in Decky Loader. You can also open Decky with "Open in headset". |
+| The Decky item is not visible in the headset | On the Plugins tab, tick the place you want in "Where to show Decky in the headset" (with both cleared, Decky is not shown in the headset). Close and reopen the menu (it refreshes when it opens). Make sure Steam is running and the SFH Frame Menu plugin is installed. Press "Repair" in Decky Loader. You can also open Decky with "Open in headset". |
 | The "Left menu" / "Quick Settings" boxes are greyed out | Steam must be running and the SFH Frame Menu plugin must be loaded. Press "Repair", then "Refresh list". |
 | The connection stats are not visible in the headset | Press "Turn on" (check that the mark is a green check), then "Show / hide". The window appears only while SteamVR is running. Or turn on "Show in headset" in the plugin. |
 | The "Show in headset" switch is disabled | The stats are not running: turn them on in SFH (Tools → Network). |
@@ -419,7 +429,7 @@ SteamOS updates may reset changes on the system partition.
 - System features (region, Wi-Fi, Decky, system partition write access) change SteamOS settings. SteamOS updates may reset them. Unlock the system partition only if you know why, and lock it again.
 - Do not pick the RU region on the Steam Frame.
 - The "Steam UI in a PC browser" link gives control of the Steam UI to anyone who knows it. Turn the feature off when you do not need it.
-- Decky Loader is third-party and plugins are written by different authors. Install only plugins you trust. The plugin store set by SFH is third-party.
+- Decky Loader is third-party and plugins are written by different authors. Install only plugins you trust, especially from a third-party store.
 - The Android feature is meant only for apps you own legally.
 - Installing or removing Android apps, and installing, repairing or removing Decky, briefly restart Steam: save your progress first.
 - License: PolyForm Noncommercial 1.0.0 (you may use, study, modify and share it, including your own changes, but not commercially).

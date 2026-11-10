@@ -16,13 +16,24 @@ UI_STATE = os.path.join(APP_DIR, "ui_state.json")
 LANGUAGES = (("ru", "Русский"), ("en", "English"))
 
 
-STEAM_REGISTRY = os.path.expanduser("~/.steam/registry.vdf")
+def user_home():
+    """Home of the desktop user, also when running as root through sudo / pkexec."""
+    try:
+        import pwd
+        if os.environ.get("SUDO_USER"):
+            return pwd.getpwnam(os.environ["SUDO_USER"]).pw_dir
+        if os.environ.get("PKEXEC_UID"):
+            return pwd.getpwuid(int(os.environ["PKEXEC_UID"])).pw_dir
+    except (ImportError, KeyError, ValueError):
+        pass
+    return os.path.expanduser("~")
 
 
 def steam_language():
     """Steam client language from registry.vdf ("language" "russian"), or ""."""
     try:
-        with open(STEAM_REGISTRY, encoding="utf-8", errors="replace") as f:
+        with open(os.path.join(user_home(), ".steam", "registry.vdf"),
+                  encoding="utf-8", errors="replace") as f:
             for line in f:
                 parts = line.split('"')
                 # ['\t\t', 'language', '\t\t', 'russian', '\n']

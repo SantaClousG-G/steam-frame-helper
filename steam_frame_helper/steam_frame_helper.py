@@ -61,9 +61,11 @@ def run_user(args):
 
 def run_root(args):
     """Run as root: passwordless sudo first, pkexec as fallback."""
+    # sudo and pkexec drop the environment: pass the UI language explicitly
+    lang = ["env", f"SFH_LANG={LANG}"]
     for prefix in (["sudo", "-n"], ["pkexec"]):
         try:
-            res = subprocess.run(prefix + args, capture_output=True, text=True)
+            res = subprocess.run(prefix + lang + args, capture_output=True, text=True)
         except FileNotFoundError:
             continue
         if prefix[0] == "sudo" and res.returncode != 0 and "password" in res.stderr:
@@ -382,7 +384,7 @@ class DeckyTool(StatusTool):
 
 class DeckyPlacementRow(Gtk.Box):
     """Where the SFH Frame Menu plugin shows Decky in the headset: left menu and/or Quick
-    Settings (tools/decky_placement.py talks to the plugin over CDP). At least one stays on."""
+    Settings (tools/decky_placement.py talks to the plugin over CDP). Both may be off."""
 
     def __init__(self, runner):
         super().__init__(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
@@ -424,18 +426,107 @@ class DeckyPlacementRow(Gtk.Box):
     def on_toggled(self, chk):
         if self.updating:
             return
+        # Both may be off: Decky is then opened only with "Open in headset" in SFH.
         menu, qam = self.checks["menu"].get_active(), self.checks["qam"].get_active()
-        if not menu and not qam:
-            # keep at least one place, otherwise Decky can't be opened in the headset
-            self.updating = True
-            chk.set_active(True)
-            self.updating = False
-            self.runner.log(_("Decky должен остаться хотя бы в одном месте"))
-            return
         self.runner.run(run_user, [tool("decky_placement.py"), "set",
                                    "1" if menu else "0", "1" if qam else "0"],
                         _("Decky в шлеме: место показа"), on_done=self.show_state,
                         widgets=list(self.checks.values()))
+
+
+class DeckyStoreRow(Gtk.Box):
+    """Third-party Decky plugin store: pick a known address or type a new one and connect
+    it, or go back to Decky's official store (tools/decky.sh store-*). Addresses that were
+    connected once are remembered in ui_state.json."""
+
+    PRESETS = ["https://repo.steamdeckbase.org/decky/plugins"]
+    STATE_KEY = "decky.stores"
+
+    def __init__(self, runner):
+        super().__init__(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        self.runner = runner
+        self.script = tool("decky.sh")
+        self.get_style_context().add_class("tool-row")
+        text, self.sub = title_block(_("Сторонний магазин плагинов"))
+        self.pack_start(text, True, True, 0)
+
+        self.combo = Gtk.ComboBoxText.new_with_entry()
+        self.combo.set_size_request(320, -1)
+        self.combo.get_child().set_placeholder_text("https://…")
+        self.pack_start(self.combo, False, False, 0)
+        self.btn_set = Gtk.Button(label=_("Подключить"))
+        self.btn_set.connect("clicked", self.on_set)
+        self.pack_start(self.btn_set, False, False, 0)
+        self.btn_official = Gtk.Button(label=_("Вернуть официальный"))
+        self.btn_official.connect("clicked", self.on_official)
+        self.btn_official.set_sensitive(False)
+        self.pack_start(self.btn_official, False, False, 0)
+        self.current = ""
+        self.fill([])
+        self.refresh()
+
+    def known(self):
+        saved = load_ui_state().get(self.STATE_KEY, [])
+        out = []
+        for url in self.PRESETS + list(saved) + ([self.current] if self.current else []):
+            if url and url not in out:
+                out.append(url)
+        return out
+
+    def fill(self, _unused):
+        typed = self.combo.get_child().get_text()
+        self.combo.remove_all()
+        for url in self.known():
+            self.combo.append_text(url)
+        self.combo.get_child().set_text(typed or self.current or self.PRESETS[0])
+
+    def show_state(self, res):
+        info = parse_kv(res.stdout)
+        store, url = info.get("store", ""), info.get("url", "")
+        self.current = url if store == "custom" else ""
+        if store == "custom":
+            self.sub.set_text(_("Подключён сторонний: {url}").format(url=url))
+        elif store:
+            self.sub.set_text(_("Сейчас официальный магазин Decky"))
+        else:
+            self.sub.set_text(_("Не удалось прочитать настройки Decky"))
+        self.btn_official.set_sensitive(store == "custom")
+        self.combo.get_child().set_text("")
+        self.fill([])
+        return False
+
+    def refresh(self):
+        threading.Thread(
+            target=lambda: GLib.idle_add(self.show_state,
+                                         run_user([self.script, "store-status"])),
+            daemon=True).start()
+
+    def on_set(self, _btn):
+        url = self.combo.get_child().get_text().strip()
+        if not (url.startswith("https://") or url.startswith("http://")):
+            self.runner.log(_("Адрес магазина должен начинаться с https://"))
+            return
+        if not confirm(self.get_toplevel(), _("Подключить сторонний магазин?"),
+                       _("Плагины из стороннего магазина не проверяет команда Decky. "
+                         "Ставьте только то, чему доверяете.\n\n{url}").format(url=url)):
+            return
+
+        def done(res):
+            if res.returncode == 0:
+                saved = load_ui_state().get(self.STATE_KEY, [])
+                if url not in saved and url not in self.PRESETS:
+                    save_ui_state(self.STATE_KEY, saved + [url])
+            self.refresh()
+
+        self.runner.run(run_root, [self.script, "store-set", url],
+                        _("Подключение стороннего магазина"), on_done=done,
+                        widgets=[self.btn_set, self.btn_official])
+
+    def on_official(self, _btn):
+        self.runner.run(run_root, [self.script, "store-official"],
+                        _("Возврат к официальному магазину"),
+                        on_done=lambda _r: self.refresh(),
+                        widgets=[self.btn_set, self.btn_official])
 
 
 class RegionTool(StatusTool):
@@ -624,6 +715,7 @@ class PluginsPage:
         outer.pack_start(loader, False, False, 0)
         loader.add_row(DeckyTool(runner))
         loader.add_row(DeckyPlacementRow(runner))
+        loader.add_row(DeckyStoreRow(runner))
         installed = Section("plugins.installed", _("Установленные плагины"))
         outer.pack_start(installed, False, False, 0)
         self.box = installed.body
