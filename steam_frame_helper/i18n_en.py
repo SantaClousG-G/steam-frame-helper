@@ -53,6 +53,13 @@ EN = {
     "Wi-Fi без энергосбережения": "Wi-Fi without power saving",
     "Запись в системный раздел": "System partition write access",
     "Права администратора без пароля": "Admin rights without a password",
+    "Права": "Permissions",
+    "Среда Android": "Android runtime",
+    "Установлен. Нужен приложениям с minSdk выше 30": "Installed. Needed by apps with minSdk above 30",
+    "Скачивается в Steam (прогресс — в загрузках Steam)": "Downloading in Steam (see Steam downloads for progress)",
+    "Не установлен. Нужен приложениям с minSdk выше 30; Steam скачает его по кнопке":
+        "Not installed. Needed by apps with minSdk above 30; Steam downloads it when you press the button",
+    "Установка Lepton 14": "Installing Lepton 14",
     "Разблокировать": "Unlock",
     "Заблокировать": "Lock",
     "Быстрые действия": "Quick actions",

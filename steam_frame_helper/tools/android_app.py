@@ -25,6 +25,7 @@ Usage:
   android_app.py install "<name>" <app.apk> [file.obb ...] [--lepton auto|11|14]
   android_app.py remove "<name>" [--purge] (--purge also deletes ~/Games/<name>;
                                             the Lepton container with saves is kept)
+  android_app.py lepton14 status | install  (install: steam://install/5181730)
 Runs as the user.
 """
 
@@ -297,6 +298,57 @@ def cmd_remove(name, purge=False):
     print(f"Removed shortcut: {name}")
 
 
+# ---------- Lepton 14 runtime ----------
+
+LEPTON14_APPID = 5181730          # Steam tool "Lepton 14" (Android 14, SDK 34)
+
+
+def library_dirs():
+    """steamapps folders of all Steam libraries (internal storage, SD card)."""
+    dirs = [os.path.join(STEAM, "steamapps")]
+    try:
+        with open(os.path.join(STEAM, "steamapps", "libraryfolders.vdf"), encoding="utf-8") as f:
+            for line in f:
+                parts = line.split('"')
+                if len(parts) >= 4 and parts[1] == "path":
+                    path = os.path.join(parts[3].replace("\\\\", "\\"), "steamapps")
+                    if path not in dirs:
+                        dirs.append(path)
+    except OSError:
+        pass
+    return dirs
+
+
+def lepton14_state():
+    """installed | downloading | missing (StateFlags 4 = fully installed)."""
+    for d in library_dirs():
+        manifest = os.path.join(d, f"appmanifest_{LEPTON14_APPID}.acf")
+        try:
+            with open(manifest, encoding="utf-8") as f:
+                for line in f:
+                    parts = line.split('"')
+                    if len(parts) >= 4 and parts[1] == "StateFlags":
+                        return "installed" if parts[3] == "4" else "downloading"
+        except OSError:
+            continue
+    return "missing"
+
+
+def cmd_lepton14_status():
+    print(f"state={lepton14_state()}")
+
+
+def cmd_lepton14_install():
+    """Ask the running Steam client to install the tool (same as steam://install/<appid>)."""
+    if lepton14_state() == "installed":
+        print("Lepton 14 is already installed")
+        return
+    subprocess.Popen(["steam", f"steam://install/{LEPTON14_APPID}"],
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                     start_new_session=True)
+    print("Lepton 14: download requested from Steam")
+
+
 def main():
     args = sys.argv[1:]
     wanted = "auto"
@@ -315,6 +367,10 @@ def main():
         cmd_install(args[1], args[2], args[3:], wanted)
     elif args[:1] == ["remove"] and len(args) in (2, 3):
         cmd_remove(args[1], purge=args[2:] == ["--purge"])
+    elif args == ["lepton14", "status"]:
+        cmd_lepton14_status()
+    elif args == ["lepton14", "install"]:
+        cmd_lepton14_install()
     else:
         print(__doc__, file=sys.stderr)
         return 1

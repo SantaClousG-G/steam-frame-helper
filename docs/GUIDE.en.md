@@ -145,19 +145,6 @@ The SteamOS root partition is read-only by default. This feature removes and res
 
 Needs root. Lock the partition again when you are done. SteamOS updates may reset changes made on the system partition.
 
-#### Passwordless sudo
-
-By default `sudo` asks for the user's password, and SFH opens a password dialog for every action that needs root. This feature lets `sudo` work without a password. A green check means `sudo` works without a password.
-
-| Button | What happens |
-|---|---|
-| Turn on | Creates the rule `/etc/sudoers.d/zz-sfh-nopasswd` (`<user> ALL=(ALL) NOPASSWD: ALL`). The rule is checked with `visudo` first; a broken rule is never installed. The password is asked once. |
-| Turn off | Removes the rule: `sudo` asks for the password again. |
-
-Keep in mind: without a password, any program running as your user can get root. The rule lives in `/etc` and survives SteamOS updates, but a factory reset removes it.
-
-Status checks (the green checks) never ask for a password: without passwordless sudo they run as the regular user.
-
 #### Quick actions
 
 | Button | What happens |
@@ -260,6 +247,16 @@ Sections: Search results and Installed.
 
 Installs an APK (and optional OBB files) as a VR app in your Steam library. It runs through Valve's Lepton compatibility layer. Use it only for apps you own legally.
 
+### Android runtime section
+
+#### Lepton 14 — Android 14 (SDK 34)
+
+Valve's second Android runtime. Apps that need Android newer than 11 (minSdk above 30) require it. Steam installs the regular Lepton (Android 11) by itself, but downloads Lepton 14 only on request. A green check means Lepton 14 is installed.
+
+| Button | What happens |
+|---|---|
+| Install | Asks Steam to download the Lepton 14 tool (same as the command `steam steam://install/5181730`). The download, about 500 MB, runs in Steam, and its progress shows in Steam downloads; while it runs, the row says "Downloading". No root needed. |
+
 ### Install APK section
 
 | Element | What it does |
@@ -333,6 +330,21 @@ Useful if you connect to the Frame desktop through remote desktop (xrdp). The Pl
 |---|---|
 | Turn on | Adds a system (polkit) rule that lets your user do exactly one thing without a password: scan Wi-Fi. Other network settings still need a password. Needs root. |
 | Turn off | Removes that rule. Needs root. |
+
+### Permissions section
+
+#### Admin rights without a password
+
+By default `sudo` asks for the user's password, SFH opens a password dialog for every action that needs root, and the desktop (in the headset or over RDP) sometimes shows system password dialogs, for example at shutdown. This feature removes the password in both places. A green check means no password is asked.
+
+| Button | What happens |
+|---|---|
+| Turn on | Creates the rule `/etc/sudoers.d/zz-sfh-nopasswd` (`<user> ALL=(ALL) NOPASSWD: ALL`; checked with `visudo` first, a broken rule is never installed) and the polkit rule `/etc/polkit-1/rules.d/49-sfh-nopasswd.rules`, which lets your user do system actions without a password dialog. The polkit rule adds no new rights: with passwordless `sudo` root is available anyway. The password is asked once. |
+| Turn off | Removes both rules: the password is asked again. |
+
+Keep in mind: without a password, any program running as your user can get root. The rule lives in `/etc` and survives SteamOS updates, but a factory reset removes it.
+
+Status checks (the green checks) never ask for a password: without passwordless sudo they run as the regular user.
 
 ## Decky quick menu (SFH Frame Menu)
 

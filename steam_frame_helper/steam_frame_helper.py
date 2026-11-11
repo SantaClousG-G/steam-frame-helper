@@ -924,6 +924,19 @@ class AndroidPage:
         self.obbs = []
         self.widget, self.box = page()
 
+        self.box.pack_start(section(_("Среда Android")), False, False, 0)
+        lepton14 = row_box()
+        self.lepton14_mark = Gtk.Label()
+        self.lepton14_mark.set_size_request(36, -1)
+        lepton14.pack_start(self.lepton14_mark, False, False, 0)
+        text, self.lepton14_sub = title_block("Lepton 14 — Android 14 (SDK 34)")
+        lepton14.pack_start(text, True, True, 0)
+        self.btn_lepton14 = Gtk.Button(label=_("Установить"))
+        self.btn_lepton14.connect("clicked", self.install_lepton14)
+        lepton14.pack_start(self.btn_lepton14, False, False, 0)
+        self.box.pack_start(lepton14, False, False, 0)
+        self.refresh_lepton14()
+
         self.box.pack_start(section(_("Установить APK")), False, False, 0)
         form = row_box()
         form.set_orientation(Gtk.Orientation.VERTICAL)
@@ -987,6 +1000,36 @@ class AndroidPage:
         self.list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.box.pack_start(self.list, False, False, 0)
         self.refresh()
+
+    def refresh_lepton14(self):
+        def done(res):
+            state = parse_kv(res.stdout).get("state", "missing")
+            installed = state == "installed"
+            ctx = self.lepton14_mark.get_style_context()
+            ctx.remove_class("status-ok")
+            ctx.remove_class("status-no")
+            self.lepton14_mark.set_text("✔" if installed else "✖")
+            ctx.add_class("status-ok" if installed else "status-no")
+            self.lepton14_sub.set_text({
+                "installed": _("Установлен. Нужен приложениям с minSdk выше 30"),
+                "downloading": _("Скачивается в Steam (прогресс — в загрузках Steam)"),
+            }.get(state, _("Не установлен. Нужен приложениям с minSdk выше 30; Steam скачает его по кнопке")))
+            self.btn_lepton14.set_sensitive(not installed)
+            if state == "downloading":
+                GLib.timeout_add_seconds(10, lambda: self.refresh_lepton14() and False)
+            return False
+
+        threading.Thread(
+            target=lambda: GLib.idle_add(done, run_user([self.script, "lepton14", "status"])),
+            daemon=True,
+        ).start()
+
+    def install_lepton14(self, _btn):
+        self.runner.run(run_user, [self.script, "lepton14", "install"],
+                        _("Установка Lepton 14"),
+                        on_done=lambda _r: GLib.timeout_add_seconds(
+                            5, lambda: self.refresh_lepton14() and False),
+                        widgets=[self.btn_lepton14])
 
     def _chooser(self, title, pattern, multiple):
         dlg = Gtk.FileChooserDialog(title=title, transient_for=self.window,
@@ -1414,8 +1457,6 @@ class MainWindow(Gtk.Window):
                                   install_label=_("Разблокировать"),
                                   remove_label=_("Заблокировать"),
                                   status_as_root=True))
-        system.add_row(StatusTool(runner, _("Права администратора без пароля"), "sudo_nopasswd.sh",
-                                  install_label=_("Включить"), remove_label=_("Выключить")))
         system.add_row(QuickActions(runner, self))
         notebook.append_page(tools_page, Gtk.Label(label=_("Инструменты")))
 
@@ -1434,6 +1475,10 @@ class MainWindow(Gtk.Window):
         remote.add_row(StatusTool(runner, _("RDP: Wi-Fi без запроса пароля"), "rdp_wifi_scan.sh",
                                   install_label=_("Включить"), remove_label=_("Выключить"),
                                   status_as_root=True))
+        rights = Section("dev.rights", _("Права"))
+        dev.pack_start(rights, False, False, 0)
+        rights.add_row(StatusTool(runner, _("Права администратора без пароля"), "sudo_nopasswd.sh",
+                                  install_label=_("Включить"), remove_label=_("Выключить")))
         notebook.append_page(dev_page, Gtk.Label(label=_("Разработка")))
 
     def log(self, text):
