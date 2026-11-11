@@ -36,7 +36,7 @@ case "${1:-status}" in
         active="$(systemctl --user is-active "$UNIT" 2>/dev/null)"
         if [ -f "$UNIT_FILE" ] && systemctl --user is-enabled "$UNIT" >/dev/null 2>&1; then
             echo "installed=1"
-            echo "info=$(t "Включён (автозапуск)  ·  служба: $active  ·  показать/скрыть: кнопка справа" "On (autostart)  ·  service: $active  ·  show/hide: button on the right")"
+            echo "info=$(t "Включён (автозапуск, окно скрыто до показа)  ·  служба: $active  ·  показать/скрыть: кнопка справа" "On (autostart, window hidden until shown)  ·  service: $active  ·  show/hide: button on the right")"
         else
             echo "installed=0"
             echo "info=$(t "Пинг, потери и трафик до ПК в маленьком окне внизу поля зрения" "Ping, packet loss and traffic to the PC in a small window at the bottom of your view")"

@@ -670,7 +670,7 @@ def main():
     control = SteamControl()
     steamvr = SteamVrWatch()
     overlay = None
-    visible = True
+    visible = False                        # hidden until shown from SFH or the Decky plugin
     next_frame = 0.0
     while True:
         try:

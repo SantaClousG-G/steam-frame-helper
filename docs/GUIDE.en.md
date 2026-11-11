@@ -127,7 +127,7 @@ Steam's "ping" is the worst round-trip time of the last second, which is what yo
 | Button | What happens |
 |---|---|
 | Show / hide | Shows or hides the window in the headset. Available when the stats are turned on. |
-| Turn on | Creates and starts the user service `sfh-vr-hud`, which starts at every login. The window appears in the headset while SteamVR is running. No root needed. |
+| Turn on | Creates and starts the user service `sfh-vr-hud`, which starts at every login. The window is hidden at first: open it with the Show / hide button or from the Decky menu. The service connects to SteamVR only after Steam has fully started it (about 20 seconds) and never starts SteamVR itself. No root needed. |
 | Turn off | Stops the service and removes the autostart. |
 
 You can also toggle it from inside the headset, in the Decky quick menu: the SFH Frame Menu plugin, "Connection stats" section, "Show in headset" switch (see [Decky quick menu](#decky-quick-menu-sfh-frame-menu)). Toggling it by clicking the thumbsticks is not possible: SteamVR does not deliver controller input to background overlays.
