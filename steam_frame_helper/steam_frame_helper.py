@@ -1457,6 +1457,10 @@ class MainWindow(Gtk.Window):
                                   install_label=_("Разблокировать"),
                                   remove_label=_("Заблокировать"),
                                   status_as_root=True))
+        system.add_row(StatusTool(runner, _("KDE Wallet: не спрашивать пароль"), "kwallet.sh",
+                                  install_label=_("Выключить кошелёк"),
+                                  remove_label=_("Включить обратно"),
+                                  actions_as_root=False))
         system.add_row(QuickActions(runner, self))
         notebook.append_page(tools_page, Gtk.Label(label=_("Инструменты")))
 
@@ -1475,6 +1479,9 @@ class MainWindow(Gtk.Window):
         remote.add_row(StatusTool(runner, _("RDP: Wi-Fi без запроса пароля"), "rdp_wifi_scan.sh",
                                   install_label=_("Включить"), remove_label=_("Выключить"),
                                   status_as_root=True))
+        remote.add_row(StatusTool(runner, _("RDP: заголовки окон"), "rdp_wm.sh",
+                                  install_label=_("Починить"), remove_label=_("Убрать"),
+                                  actions_as_root=False))
         rights = Section("dev.rights", _("Права"))
         dev.pack_start(rights, False, False, 0)
         rights.add_row(StatusTool(runner, _("Права администратора без пароля"), "sudo_nopasswd.sh",

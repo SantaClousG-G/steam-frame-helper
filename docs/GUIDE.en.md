@@ -145,6 +145,15 @@ The SteamOS root partition is read-only by default. This feature removes and res
 
 Needs root. Lock the partition again when you are done. SteamOS updates may reset changes made on the system partition.
 
+#### KDE Wallet: no password prompt
+
+Chromium (and some other apps) opens KDE Wallet on start, and the wallet asks for its password every time. A green check means the wallet is off and no password is asked.
+
+| Button | What happens |
+|---|---|
+| Turn wallet off | Turns KDE Wallet off (`~/.config/kwalletrc`: `Enabled=false`) and adds the `--password-store=basic` flag for Chromium (`~/.var/app/org.chromium.Chromium/config/chromium-flags.conf`), so it keeps passwords itself. Restart the browser. No root needed. |
+| Turn back on | Turns the wallet on and removes the flag. Passwords saved in the wallet earlier are kept. |
+
 #### Quick actions
 
 | Button | What happens |
@@ -330,6 +339,15 @@ Useful if you connect to the Frame desktop through remote desktop (xrdp). The Pl
 |---|---|
 | Turn on | Adds a system (polkit) rule that lets your user do exactly one thing without a password: scan Wi-Fi. Other network settings still need a password. Needs root. |
 | Turn off | Removes that rule. Needs root. |
+
+#### RDP: window title bars
+
+RDP (xrdp) starts the Plasma desktop on X11, but SteamOS has no X11 window manager (`kwin_x11`), only the Wayland one. So in RDP windows have no title bars: you cannot drag, minimize or close them. A green check means the fix is on.
+
+| Button | What happens |
+|---|---|
+| Repair | Creates `~/.config/plasma-workspace/env/sfh-rdp-wm.sh`: in xrdp sessions Plasma uses Openbox (part of SteamOS) as the window manager. In an RDP session that is already open, title bars appear right away. The in-headset desktop (Wayland) is not affected. No root needed. |
+| Remove | Deletes that file. Takes effect at the next RDP login. |
 
 ### Permissions section
 
