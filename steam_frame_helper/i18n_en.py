@@ -52,6 +52,7 @@ EN = {
     "Поменять регион Wi-Fi": "Change Wi-Fi region",
     "Wi-Fi без энергосбережения": "Wi-Fi without power saving",
     "Запись в системный раздел": "System partition write access",
+    "sudo без пароля": "Passwordless sudo",
     "Разблокировать": "Unlock",
     "Заблокировать": "Lock",
     "Быстрые действия": "Quick actions",

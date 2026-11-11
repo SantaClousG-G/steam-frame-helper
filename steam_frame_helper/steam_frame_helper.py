@@ -75,19 +75,34 @@ def run_user(args):
     return subprocess.run(args, capture_output=True, text=True, env=user_session_env())
 
 
-def run_root(args):
-    """Run as root: passwordless sudo first, pkexec as fallback."""
+# One password dialog at a time: parallel pkexec calls make polkit cancel some of them.
+PKEXEC_LOCK = threading.Lock()
+
+
+def run_root(args, ask_password=True):
+    """Run as root: passwordless sudo first, pkexec as fallback.
+
+    ask_password=False never opens a password dialog: without passwordless sudo the
+    command runs as the user (status checks are written to work that way)."""
     # sudo and pkexec drop the environment: pass the UI language explicitly
     lang = ["env", f"SFH_LANG={LANG}"]
-    for prefix in (["sudo", "-n"], ["pkexec"]):
-        try:
-            res = subprocess.run(prefix + lang + args, capture_output=True, text=True)
-        except FileNotFoundError:
-            continue
-        if prefix[0] == "sudo" and res.returncode != 0 and "password" in res.stderr:
-            continue
-        return res
-    return subprocess.CompletedProcess(args, 1, "", _("Нет прав root (sudo/pkexec)"))
+    try:
+        res = subprocess.run(["sudo", "-n"] + lang + args, capture_output=True, text=True)
+        if not (res.returncode != 0 and "password" in res.stderr):
+            return res
+    except FileNotFoundError:
+        pass
+    if not ask_password:
+        return run_user(args)
+    try:
+        with PKEXEC_LOCK:
+            return subprocess.run(["pkexec"] + lang + args, capture_output=True, text=True)
+    except FileNotFoundError:
+        return subprocess.CompletedProcess(args, 1, "", _("Нет прав root (sudo/pkexec)"))
+
+
+def run_status_root(args):
+    return run_root(args, ask_password=False)
 
 
 def parse_kv(text):
@@ -318,7 +333,7 @@ class StatusTool(Gtk.Box):
             self.on_status(info)
             return False
 
-        func = run_root if self.status_as_root else run_user
+        func = run_status_root if self.status_as_root else run_user
         threading.Thread(
             target=lambda: GLib.idle_add(done, func([self.script, "status"])),
             daemon=True,
@@ -1399,6 +1414,8 @@ class MainWindow(Gtk.Window):
                                   install_label=_("Разблокировать"),
                                   remove_label=_("Заблокировать"),
                                   status_as_root=True))
+        system.add_row(StatusTool(runner, _("sudo без пароля"), "sudo_nopasswd.sh",
+                                  install_label=_("Включить"), remove_label=_("Выключить")))
         system.add_row(QuickActions(runner, self))
         notebook.append_page(tools_page, Gtk.Label(label=_("Инструменты")))
 

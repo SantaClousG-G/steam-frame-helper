@@ -1,16 +1,30 @@
 #!/bin/bash
 # SteamOS read-only root filesystem toggle.
 # Usage: readonly.sh status | install (unlock: writable) | remove (lock)
-# All commands require root (steamos-readonly status needs it too).
+# install/remove require root. status works without root: steamos-readonly status
+# needs root, so as a user the btrfs "ro" property of / is read directly.
 
 set -u
 
 TOOLS="$(cd "$(dirname "$0")" && pwd)"
 . "$TOOLS/i18n.sh"
 
+readonly_state() {
+    local s
+    s="$(steamos-readonly status 2>/dev/null)"
+    if [ -n "$s" ]; then
+        echo "$s"
+        return
+    fi
+    case "$(btrfs property get -ts / ro 2>/dev/null)" in
+        ro=false) echo "disabled" ;;
+        ro=true) echo "enabled" ;;
+    esac
+}
+
 case "${1:-status}" in
     status)
-        s="$(steamos-readonly status 2>/dev/null)"
+        s="$(readonly_state)"
         if [ "$s" = "disabled" ]; then
             echo "installed=1"
             echo "info=$(t "Системный раздел доступен для записи" "System partition is writable")"

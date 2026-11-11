@@ -12,12 +12,14 @@ TOOLS="$(cd "$(dirname "$0")" && pwd)"
 . "$TOOLS/i18n.sh"
 
 RULE=/etc/polkit-1/rules.d/50-sfh-rdp-wifi-scan.rules
+# rules.d is not readable by the user: a world-readable marker lets `status` run without root
+MARKER=/etc/sfh/rdp-wifi-scan
 TARGET_USER="${SUDO_USER:-${PKEXEC_UID:+$(id -nu "$PKEXEC_UID")}}"
 TARGET_USER="${TARGET_USER:-steamos}"
 
 case "${1:-status}" in
     status)
-        if [ -f "$RULE" ]; then
+        if [ -f "$RULE" ] || [ -f "$MARKER" ]; then
             echo "installed=1"
             echo "info=$(t "Сканирование Wi-Fi в RDP без запроса пароля (только это действие)" "Wi-Fi scanning in RDP without a password prompt (this action only)")"
         else
@@ -36,9 +38,10 @@ polkit.addRule(function(action, subject) {
 });
 EOF
         chmod 644 "$RULE"
+        mkdir -p /etc/sfh && : > "$MARKER" && chmod 644 "$MARKER"
         ;;
     remove)
-        rm -f "$RULE"
+        rm -f "$RULE" "$MARKER"
         ;;
     *)
         echo "Usage: $0 status | install | remove" >&2
