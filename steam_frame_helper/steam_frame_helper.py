@@ -1414,7 +1414,7 @@ class MainWindow(Gtk.Window):
                                   install_label=_("Разблокировать"),
                                   remove_label=_("Заблокировать"),
                                   status_as_root=True))
-        system.add_row(StatusTool(runner, _("sudo без пароля"), "sudo_nopasswd.sh",
+        system.add_row(StatusTool(runner, _("Права администратора без пароля"), "sudo_nopasswd.sh",
                                   install_label=_("Включить"), remove_label=_("Выключить")))
         system.add_row(QuickActions(runner, self))
         notebook.append_page(tools_page, Gtk.Label(label=_("Инструменты")))

@@ -625,6 +625,41 @@ def on_sigusr1(signum, frame):
     toggle_requested = True
 
 
+# SteamVR must be started by Steam (vrserver -waitformonitor -ipccontrolfilepath ...).
+# VR_Init as an overlay app starts SteamVR itself when it is not running; at boot that
+# raced Steam, Steam could not start its VR shell and the headset stayed on a blue screen.
+# So the overlay connects only after Steam's SteamVR has been up for a while.
+STEAMVR_PROCESSES = ("vrserver", "vrcompositor", "vrdashboard")
+STEAMVR_SETTLE = 20                        # seconds all of them must be running
+
+
+def running_processes():
+    names = set()
+    for pid in os.listdir("/proc"):
+        if not pid.isdigit():
+            continue
+        try:
+            with open(f"/proc/{pid}/comm") as f:
+                names.add(f.read().strip())
+        except OSError:
+            pass
+    return names
+
+
+class SteamVrWatch:
+    def __init__(self):
+        self.since = None
+
+    def ready(self):
+        names = running_processes()
+        if all(p in names for p in STEAMVR_PROCESSES):
+            if self.since is None:
+                self.since = time.monotonic()
+            return time.monotonic() - self.since >= STEAMVR_SETTLE
+        self.since = None
+        return False
+
+
 def main():
     global toggle_requested
     signal.signal(signal.SIGUSR1, on_sigusr1)
@@ -633,12 +668,16 @@ def main():
     textures = GlTextures()
     hud = Hud()
     control = SteamControl()
+    steamvr = SteamVrWatch()
     overlay = None
     visible = True
     next_frame = 0.0
     while True:
         try:
             if overlay is None:
+                if not steamvr.ready():
+                    time.sleep(2)
+                    continue
                 overlay = Overlay(cfg, textures)
                 print("overlay created", flush=True)
             if control.poll(visible) or toggle_requested:
@@ -656,6 +695,7 @@ def main():
             if overlay:
                 overlay.close()
             overlay = None
+            steamvr.since = None           # SteamVR may be restarting: settle again
             time.sleep(5)
             continue
         except Exception as e:  # keep the HUD alive on transient tool errors
