@@ -4,7 +4,7 @@ English | [Русский](GUIDE.ru.md)
 
 Steam Frame Helper (SFH) is a window of tweaks and utilities for the Steam Frame. It runs in SteamOS Desktop Mode. Almost every feature is turned on and off with a single button, and this guide tells you what each one actually changes on the system.
 
-This guide matches Steam Frame Helper 1.7.1.
+This guide matches Steam Frame Helper 1.7.2.
 
 ## Contents
 
@@ -144,6 +144,19 @@ The SteamOS root partition is read-only by default. This feature removes and res
 | Lock | Restores the protection: the partition is read-only again. |
 
 Needs root. Lock the partition again when you are done. SteamOS updates may reset changes made on the system partition.
+
+#### Passwordless sudo
+
+By default `sudo` asks for the user's password, and SFH opens a password dialog for every action that needs root. This feature lets `sudo` work without a password. A green check means `sudo` works without a password.
+
+| Button | What happens |
+|---|---|
+| Turn on | Creates the rule `/etc/sudoers.d/zz-sfh-nopasswd` (`<user> ALL=(ALL) NOPASSWD: ALL`). The rule is checked with `visudo` first; a broken rule is never installed. The password is asked once. |
+| Turn off | Removes the rule: `sudo` asks for the password again. |
+
+Keep in mind: without a password, any program running as your user can get root. The rule lives in `/etc` and survives SteamOS updates, but a factory reset removes it.
+
+Status checks (the green checks) never ask for a password: without passwordless sudo they run as the regular user.
 
 #### Quick actions
 
