@@ -18,19 +18,21 @@ ENV_FILE="$HOME/.config/plasma-workspace/env/sfh-rdp-wm.sh"
 WM=/usr/bin/openbox
 STUB="$TOOLS/rdp_kwin_session.py"
 
-# session buses of running xrdp Plasma sessions (from their ksmserver's environment)
-xrdp_buses() {
-    local pid line bus is_xrdp
+# running xrdp Plasma sessions as "<session bus> <login session id>" (from their ksmserver)
+xrdp_sessions() {
+    local pid line bus session is_xrdp
     for pid in $(pgrep -u "$(id -u)" -x ksmserver); do
         bus=""
+        session=""
         is_xrdp=0
         while IFS= read -r -d '' line; do
             case "$line" in
                 DBUS_SESSION_BUS_ADDRESS=*) bus="${line#DBUS_SESSION_BUS_ADDRESS=}" ;;
+                XDG_SESSION_ID=*) session="${line#XDG_SESSION_ID=}" ;;
                 XRDP_SESSION=*) is_xrdp=1 ;;
             esac
         done < "/proc/$pid/environ"
-        [ "$is_xrdp" = 1 ] && [ -n "$bus" ] && echo "$bus"
+        [ "$is_xrdp" = 1 ] && [ -n "$bus" ] && [ -n "$session" ] && echo "$bus $session"
     done
 }
 
@@ -80,8 +82,10 @@ EOF
             DISPLAY="$display" XAUTHORITY="$HOME/.Xauthority" setsid "$WM" --replace \
                 >/dev/null 2>&1 < /dev/null &
         done
-        for bus in $(xrdp_buses); do
-            DBUS_SESSION_BUS_ADDRESS="$bus" setsid /usr/bin/python3 "$STUB" >/dev/null 2>&1 < /dev/null &
+        # (with that session's id: when it ends, the stand-in ends it, not the session running this)
+        xrdp_sessions | while read -r bus session; do
+            DBUS_SESSION_BUS_ADDRESS="$bus" XDG_SESSION_ID="$session" setsid /usr/bin/python3 "$STUB" \
+                >/dev/null 2>&1 < /dev/null &
         done
         echo "$(t "Готово: заголовки окон появятся в RDP (в открытой сессии — сразу)." "Done: window title bars appear in RDP (right away in an open session).")"
         ;;
