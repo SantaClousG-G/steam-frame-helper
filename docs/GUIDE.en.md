@@ -346,7 +346,7 @@ RDP (xrdp) starts the Plasma desktop on X11, but SteamOS has no X11 window manag
 
 | Button | What happens |
 |---|---|
-| Repair | Creates `~/.config/plasma-workspace/env/sfh-rdp-wm.sh`: in xrdp sessions Plasma uses Openbox (part of SteamOS) as the window manager. In an RDP session that is already open, title bars appear right away. The in-headset desktop (Wayland) is not affected. No root needed. |
+| Repair | Creates `~/.config/plasma-workspace/env/sfh-rdp-wm.sh`: in xrdp sessions Plasma uses Openbox (part of SteamOS) as the window manager. In an RDP session that is already open, title bars appear right away. It also starts a small stand-in for KWin in every RDP session (`tools/rdp_kwin_session.py`): Plasma's logout waits for KWin to answer and gives up without it, so "Log Out" did nothing. The in-headset desktop (Wayland) is not affected. If the fix was on before, press Repair again. No root needed. |
 | Remove | Deletes that file. Takes effect at the next RDP login. |
 
 #### RDP: don't dim the headset's screen

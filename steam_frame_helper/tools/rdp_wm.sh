@@ -5,6 +5,8 @@
 # moved, minimized or closed). Plasma starts the window manager named in $KDEWM instead
 # of kwin_x11; this sets it to Openbox (part of SteamOS) for xrdp sessions only. The
 # in-headset desktop (Wayland) is not affected.
+# Plasma's logout waits for KWin to close its windows; without KWin it gives up and "Log out"
+# does nothing. rdp_kwin_session.py answers in KWin's place, started with each RDP session.
 # Usage: rdp_wm.sh status | install | remove      (as the user, no root)
 
 set -u
@@ -14,6 +16,23 @@ TOOLS="$(cd "$(dirname "$0")" && pwd)"
 
 ENV_FILE="$HOME/.config/plasma-workspace/env/sfh-rdp-wm.sh"
 WM=/usr/bin/openbox
+STUB="$TOOLS/rdp_kwin_session.py"
+
+# session buses of running xrdp Plasma sessions (from their ksmserver's environment)
+xrdp_buses() {
+    local pid line bus is_xrdp
+    for pid in $(pgrep -u "$(id -u)" -x ksmserver); do
+        bus=""
+        is_xrdp=0
+        while IFS= read -r -d '' line; do
+            case "$line" in
+                DBUS_SESSION_BUS_ADDRESS=*) bus="${line#DBUS_SESSION_BUS_ADDRESS=}" ;;
+                XRDP_SESSION=*) is_xrdp=1 ;;
+            esac
+        done < "/proc/$pid/environ"
+        [ "$is_xrdp" = 1 ] && [ -n "$bus" ] && echo "$bus"
+    done
+}
 
 # X displays of running xrdp sessions (Xorg started with the xrdp config)
 xrdp_displays() {
@@ -33,9 +52,10 @@ xrdp_displays() {
 
 case "${1:-status}" in
     status)
-        if [ -f "$ENV_FILE" ]; then
+        # an older file (without the logout fix) counts as not done: "Repair" writes the new one
+        if [ -f "$ENV_FILE" ] && grep -qF rdp_kwin_session "$ENV_FILE"; then
             echo "installed=1"
-            echo "info=$(t "Окна в RDP с заголовками (Openbox): их можно двигать, сворачивать и закрывать" "Windows in RDP have title bars (Openbox): move, minimize and close them")"
+            echo "info=$(t "Окна в RDP с заголовками (Openbox), выход из сеанса работает" "Windows in RDP have title bars (Openbox); logging out works")"
         else
             echo "installed=0"
             echo "info=$(t "В RDP у окон нет заголовков: в SteamOS нет оконного менеджера для X11 (kwin_x11)" "In RDP, windows have no title bars: SteamOS has no X11 window manager (kwin_x11)")"
@@ -51,12 +71,17 @@ case "${1:-status}" in
 # Steam Frame Helper: Openbox as the window manager of xrdp sessions (no kwin_x11 in SteamOS)
 if [ -n "\${XRDP_SESSION:-}" ] && [ ! -x /usr/bin/kwin_x11 ]; then
     export KDEWM=$WM
+    # logout works without KWin: something has to answer its part
+    [ -f "$STUB" ] && setsid /usr/bin/python3 "$STUB" >/dev/null 2>&1 < /dev/null &
 fi
 EOF
         # apply to RDP sessions that are already open
         for display in $(xrdp_displays); do
             DISPLAY="$display" XAUTHORITY="$HOME/.Xauthority" setsid "$WM" --replace \
                 >/dev/null 2>&1 < /dev/null &
+        done
+        for bus in $(xrdp_buses); do
+            DBUS_SESSION_BUS_ADDRESS="$bus" setsid /usr/bin/python3 "$STUB" >/dev/null 2>&1 < /dev/null &
         done
         echo "$(t "Готово: заголовки окон появятся в RDP (в открытой сессии — сразу)." "Done: window title bars appear in RDP (right away in an open session).")"
         ;;
