@@ -61,6 +61,7 @@ EN = {
     "RDP: не затемнять экран шлема": "RDP: don't dim the headset's screen",
     "Выключить затемнение": "Turn dimming off",
     "Как в Plasma": "Plasma's default",
+    "RDP: закрывать сеанс при отключении": "RDP: end the session on disconnect",
     "Убрать": "Remove",
     "Среда Android": "Android runtime",
     "Установлен. Нужен приложениям с minSdk выше 30": "Installed. Needed by apps with minSdk above 30",

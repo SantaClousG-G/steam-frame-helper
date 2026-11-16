@@ -360,6 +360,15 @@ After the RDP client disconnects, the Plasma session keeps running in the backgr
 
 To keep the Plasma session from staying in the background, log out of it rather than just closing the RDP window: Start menu → Log Out.
 
+#### RDP: end the session on disconnect
+
+If you just close the RDP client window, xrdp keeps the Plasma session running: the next connection opens the same desktop. But the session can sit in the background for days: its programs use memory and battery, and Plasma's power manager dims the headset's screen. A green check means the session ends by itself.
+
+| Button | What happens |
+|---|---|
+| Turn on | Sets `KillDisconnected=true` and `DisconnectedTimeLimit=60` in `/etc/xrdp/sesman.ini`: a session ends a minute after disconnecting (if the connection dropped briefly, you can get back to the same desktop within that minute). The session manager reloads the setting at once; open sessions are left alone. Open windows don't come back at the next connection. Needs root. |
+| Turn off | Puts back `KillDisconnected=false` and `DisconnectedTimeLimit=0`: sessions stay after disconnecting again. |
+
 ### Permissions section
 
 #### Admin rights without a password
