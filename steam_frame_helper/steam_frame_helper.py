@@ -1482,6 +1482,9 @@ class MainWindow(Gtk.Window):
         remote.add_row(StatusTool(runner, _("RDP: заголовки окон"), "rdp_wm.sh",
                                   install_label=_("Починить"), remove_label=_("Убрать"),
                                   actions_as_root=False))
+        remote.add_row(StatusTool(runner, _("RDP: не затемнять экран шлема"), "rdp_dim.sh",
+                                  install_label=_("Выключить затемнение"), remove_label=_("Как в Plasma"),
+                                  actions_as_root=False))
         rights = Section("dev.rights", _("Права"))
         dev.pack_start(rights, False, False, 0)
         rights.add_row(StatusTool(runner, _("Права администратора без пароля"), "sudo_nopasswd.sh",

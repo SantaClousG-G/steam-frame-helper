@@ -349,6 +349,17 @@ RDP (xrdp) starts the Plasma desktop on X11, but SteamOS has no X11 window manag
 | Repair | Creates `~/.config/plasma-workspace/env/sfh-rdp-wm.sh`: in xrdp sessions Plasma uses Openbox (part of SteamOS) as the window manager. In an RDP session that is already open, title bars appear right away. The in-headset desktop (Wayland) is not affected. No root needed. |
 | Remove | Deletes that file. Takes effect at the next RDP login. |
 
+#### RDP: don't dim the headset's screen
+
+After the RDP client disconnects, the Plasma session keeps running in the background. Its power manager (PowerDevil) sees neither the headset nor the controllers and takes the user for idle: after a few minutes it dims the headset's screen and may later turn it off. In VR this looks like the brightness dropping by itself from time to time. A green check means dimming is off.
+
+| Button | What happens |
+|---|---|
+| Turn dimming off | In `~/.config/powerdevilrc`, for every power profile (on AC, on battery, low battery), turns off dimming and turning the screen off when idle (SteamOS already keeps Plasma from sleeping). Running Plasma sessions apply it at once. It also applies to the in-headset desktop: that does not dim either. No root needed. |
+| Plasma's default | Removes those keys: Plasma dims the screen by its own rules again. |
+
+To keep the Plasma session from staying in the background, log out of it rather than just closing the RDP window: Start menu → Log Out.
+
 ### Permissions section
 
 #### Admin rights without a password
