@@ -437,7 +437,14 @@ Running the installer again updates the scripts and lets you change the Frame ad
 
 ### The "Send to Frame" shortcut
 
-Opens a window titled "Send to Steam Frame". Add files or folders with the "Add files…" and "Add folder…" buttons, or drag them into the window, then press "Send". The items go to `~/Downloads` on the Frame. "Remove selected" removes entries from the send list. If the Frame cannot be reached, the window says so: check that the headset is on and on the same Wi-Fi network.
+Opens a window titled "Send to Steam Frame". Add files or folders with the "Add files" and "Add folder" buttons, or drag them into the window, then press "Send". The items go to `~/Downloads` on the Frame. "Remove" (or the Delete key) removes the selected entries from the list. The top right corner shows whether the Frame is reachable; if not, check that the headset is on and on the same Wi-Fi network.
+
+While sending, the window shows:
+- what is being sent now and, for a folder, the file number out of the total and its name;
+- a progress bar and the percentage of the total size already sent;
+- the transfer speed and the time left.
+
+During a transfer the "Send" button turns into "Cancel". What was already sent stays in `~/Downloads` on the Frame. Each entry in the list shows its state: waiting, sending, "✓ on the Frame" (the size on the Frame matches the PC) or an error. The newest message is shown at the bottom of the window; hover it to see all messages.
 
 ### What is where on the PC
 
