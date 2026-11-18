@@ -432,6 +432,7 @@ The installer does the following:
 2. Creates an SSH key if there is none and adds it to the Frame. It asks for the Frame password once.
 3. Installs a hidden PC agent: a scheduled task `SteamFrameScreenshotSync` that starts when you log in to Windows. Every 5 seconds the agent picks up new screenshots from the Frame (into Pictures\SteamFrame) and files from the queue (into Downloads\SteamFrame).
 4. Creates the "Send to Frame" shortcut on the desktop (the shortcut name depends on the Windows language).
+5. Installs the adapter region agent: a scheduled task `SteamFrameDongleRegion` that starts when you log in to Windows, with administrator rights (Windows asks for permission once, during the install). See [Wireless adapter region](#wireless-adapter-region).
 
 Running the installer again updates the scripts and lets you change the Frame address.
 
@@ -451,11 +452,24 @@ During a transfer the "Send" button turns into "Cancel". What was already sent s
 | What | Where |
 |---|---|
 | Frame address | `%USERPROFILE%\SteamFrameHelper\frame.txt` |
-| Agent scripts, the `screenshot_sync.log` log | `%USERPROFILE%\SteamFrameHelper\` |
+| Agent scripts, the `screenshot_sync.log` and `dongle_region.log` logs | `%USERPROFILE%\SteamFrameHelper\` |
+| Your own adapter region instead of the SFH region (optional) | `%USERPROFILE%\SteamFrameHelper\dongle_region.txt` |
 | Screenshots from the Frame | Pictures\SteamFrame |
 | Files from the Frame queue | Downloads\SteamFrame |
 
-To remove the agent from the PC: run `Unregister-ScheduledTask -TaskName SteamFrameScreenshotSync` in PowerShell, then delete the `%USERPROFILE%\SteamFrameHelper` folder and the desktop shortcut.
+### Wireless adapter region
+
+The Steam wireless adapter (the USB dongle) picks its country from the Wi-Fi networks around it: nearby access points broadcast a country code. If the adapter's table has no 6 GHz channels for that country (this happens with RU, for example), the adapter turns 6 GHz off and cannot see the Frame's 6 GHz access point. Steam then moves the Frame's access point to 5 GHz, onto the same channel as the Frame's home Wi-Fi, and the link gets worse: more ping and packet loss.
+
+Every 15 seconds the adapter region agent asks the adapter for its country. If it differs from the Wi-Fi region set in SFH on the Frame (the "Change Wi-Fi region" row), the agent writes that region to the adapter. This has to happen after every time the adapter is plugged in, because the adapter takes the country from nearby networks again.
+
+- The region is read from SFH over SSH every 5 minutes. If no region is set in SFH, the agent does nothing.
+- To give the adapter a different region, write a two-letter code (for example `DE`) to `%USERPROFILE%\SteamFrameHelper\dongle_region.txt`. This file takes priority over the SFH region.
+- Pick the region of your country, or of a country with the same 6 GHz rules. With another country's region the adapter may use frequencies or power that are not allowed where you are.
+- What the agent saw and changed is written to `dongle_region.log`: a line like `set RU -> DE: ... 6G Support (domain:06)` means 6 GHz is on.
+- To check the adapter by hand: in Windows, `netsh wlan show interfaces` shows `Band: 6 GHz` for the adapter once the Frame has its access point on 6 GHz.
+
+To remove the agent from the PC: run `Unregister-ScheduledTask -TaskName SteamFrameScreenshotSync` in PowerShell and (in PowerShell as administrator) `Unregister-ScheduledTask -TaskName SteamFrameDongleRegion`, then delete the `%USERPROFILE%\SteamFrameHelper` folder and the desktop shortcut.
 
 ## Updating and uninstalling
 
@@ -493,6 +507,7 @@ SteamOS updates may reset changes on the system partition.
 | The PC agent is offline | Check that the PC is on and you are logged in to Windows. Check the address in `%USERPROFILE%\SteamFrameHelper\frame.txt` (the Frame's IP may have changed). Check that the SSH key works: run `ssh steamos@IP` in PowerShell, and it should log in without a password. If not, run `install.ps1` again. Check that SSH is on on the Frame and that the Frame is not asleep. |
 | `install.ps1` cannot log in to the Frame | Check the address, that a password is set on the Frame and that `sshd` is on. The PC needs the OpenSSH client. |
 | The Steam wireless adapter stopped working | If the region is RU, press "Remove" in the region row or choose another region. |
+| The Steam adapter only works on 5 GHz (Windows shows `Band: 5 GHz` for it) and the picture stutters | The adapter took a country without 6 GHz from nearby networks. Check that the adapter region agent is installed on the PC (task `SteamFrameDongleRegion`) and that a region is set in SFH. Look at `dongle_region.log`. Then reconnect the stream. |
 | An Android app does not install | Check the APK: if minSdk is above 30, choose "Lepton 14" or "Auto". After launching it, use the "Log" button. |
 | The app is in the wrong language | Use the language switcher in the window header. |
 

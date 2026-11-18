@@ -3,8 +3,8 @@
 #      %USERPROFILE%\SteamFrameHelper\frame.txt;
 #   2. sets up SSH key login to the Frame (creates a key if there is none; the Frame
 #      password is asked once by ssh itself to add the key);
-#   3. installs the PC agent (screenshots / files from the Frame) and the desktop
-#      shortcut "Отправить на Frame".
+#   3. installs the PC agent (screenshots / files from the Frame), the desktop
+#      shortcut "Отправить на Frame" and the adapter region agent (elevated, UAC).
 # Run again any time to change the address or update the scripts.
 # Usage: powershell -ExecutionPolicy Bypass -File install.ps1 [-Frame steamos@192.168.0.50]
 param([string]$Frame = '')
@@ -61,10 +61,13 @@ if (-not $src) {
     $src = Join-Path $env:TEMP 'sfh-pc'
     New-Item -ItemType Directory -Force -Path $src | Out-Null
     $base = 'https://raw.githubusercontent.com/SantaClousG-G/steam-frame-helper/main/steam_frame_helper/pc'
-    foreach ($f in 'screenshot_sync.ps1', 'install_pc_agent.ps1', 'FrameSend.ps1', 'install_frame_send.ps1') {
+    foreach ($f in 'screenshot_sync.ps1', 'install_pc_agent.ps1', 'FrameSend.ps1', 'install_frame_send.ps1',
+                   'dongle_region.ps1', 'install_dongle_region.ps1') {
         Invoke-WebRequest -UseBasicParsing "$base/$f" -OutFile (Join-Path $src $f)
     }
 }
 & (Join-Path $src 'install_pc_agent.ps1')
 & (Join-Path $src 'install_frame_send.ps1')
+Write-Output (T 'Агент региона адаптера: Windows спросит права администратора.' 'Adapter region agent: Windows will ask for administrator rights.')
+& (Join-Path $src 'install_dongle_region.ps1')
 Write-Output (T 'Готово.' 'Done.')
