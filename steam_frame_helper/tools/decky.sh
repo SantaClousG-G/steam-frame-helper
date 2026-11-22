@@ -42,7 +42,19 @@ asset_name() {
     esac
 }
 
-# Prints: version<TAB>url<TAB>sha256 of the latest stable release asset.
+# Prereleases too when the Steam client is a beta (its newer UI often needs a Decky prerelease:
+# November 2026, Steam beta broke Decky 3.3.1, only v4.0.0-pre1 worked) or when Decky's own update
+# channel (loader.json "branch") is set to prerelease / testing.
+want_prerelease() {
+    ls "$USER_DIR"/.local/share/Steam/package/*publicbeta*.manifest >/dev/null 2>&1 && return 0
+    [ -f "$SETTINGS" ] && python3 -c '
+import json, sys
+sys.exit(0 if json.load(open(sys.argv[1])).get("branch", 0) >= 1 else 1)
+' "$SETTINGS" 2>/dev/null
+}
+
+# Prints: version<TAB>url<TAB>sha256 of the latest release asset (stable, or with
+# prereleases: see want_prerelease).
 latest_release() {
     latest_release_api || latest_release_web
 }
@@ -50,11 +62,13 @@ latest_release() {
 latest_release_api() {
     local json
     json="$(curl -fsSL "$RELEASES_API" 2>/dev/null)" || return 1
+    local pre=0
+    want_prerelease && pre=1
     python3 -c '
 import json, sys
-asset = sys.argv[1]
+asset, pre = sys.argv[1], sys.argv[3] == "1"
 for rel in json.loads(sys.argv[2]):
-    if rel.get("prerelease") or rel.get("draft"):
+    if rel.get("draft") or (rel.get("prerelease") and not pre):
         continue
     for a in rel.get("assets", []):
         if a["name"] == asset:
@@ -62,10 +76,10 @@ for rel in json.loads(sys.argv[2]):
             print(rel["tag_name"], a["browser_download_url"], digest, sep="\t")
             sys.exit(0)
 sys.exit(1)
-' "$(asset_name)" "$json"
+' "$(asset_name)" "$json" "$pre"
 }
 
-# Fallback when the GitHub API is rate-limited: the latest tag comes from the
+# Fallback when the GitHub API is rate-limited (stable releases only): the latest tag comes from the
 # releases/latest redirect, the digest from the release assets page, where
 # GitHub prints "sha256:<hex>" right after each asset link.
 latest_release_web() {
@@ -88,6 +102,19 @@ if len(digest) != 64 or not all(c in "0123456789abcdef" for c in digest):
 print(digest)
 ' "${url#https://github.com}" "$page")" || return 1
     printf '%s\t%s\t%s\n' "$tag" "$url" "$sha"
+}
+
+# Decky's own update channel to prerelease (otherwise its updater offers the older stable).
+set_branch_prerelease() {
+    [ -f "$SETTINGS" ] || return 0
+    python3 -c '
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+if d.get("branch", 0) < 1:
+    d["branch"] = 1
+    json.dump(d, open(p, "w"), indent=4)
+' "$SETTINGS" 2>/dev/null
 }
 
 do_status() {
@@ -128,6 +155,9 @@ do_install() {
     systemctl stop plugin_loader 2>/dev/null
     install -m 755 -o "$TARGET_USER" "$tmp" "$SERVICES/PluginLoader"
     echo "$version" > "$SERVICES/.loader.version"
+    case "$version" in
+    *-pre* | *-rc* | *beta*) set_branch_prerelease ;;
+    esac
 
     write_service
     install_bundled_plugins
