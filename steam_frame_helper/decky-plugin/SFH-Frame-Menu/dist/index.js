@@ -445,6 +445,23 @@ function stripDeckyButton(kids) {
   return kids;
 }
 
+// The bar is a mobx observer: a patched or restored render shows only when it renders again. Tell
+// each mounted copy's mobx reaction that its store changed (what mobx itself does on a change).
+function rerenderMounted(memo) {
+  walkMounted(f => {
+    if (f.elementType !== memo) return false;
+    for (let h = f.memoizedState; h; h = h.next) {
+      const adm = h.memoizedState?.current;
+      if (adm && typeof adm.onStoreChange === "function" && "stateVersion" in adm) {
+        adm.stateVersion = Symbol();
+        adm.onStoreChange();
+        break;
+      }
+    }
+    return false;
+  });
+}
+
 function hideDeckyBarButton() {
   const memo = findDeckyBarMemo();
   if (!memo) return null;
@@ -463,11 +480,13 @@ function hideDeckyBarButton() {
   };
   const patched = memo.type;
   retargetMounted(memo, orig, patched);
+  rerenderMounted(memo);
   return () => {
     if (memo.__sfhBarOrig) {
       if (memo.type === patched) memo.type = memo.__sfhBarOrig;
       delete memo.__sfhBarOrig;
       retargetMounted(memo, patched, orig);
+      rerenderMounted(memo);
     }
   };
 }
