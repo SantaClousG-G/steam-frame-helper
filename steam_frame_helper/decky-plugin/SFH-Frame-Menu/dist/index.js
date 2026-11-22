@@ -435,15 +435,14 @@ function findDeckyBarMemo() {
   return found;
 }
 
-function withoutDeckyButton(node) {
-  const kids = node?.props?.children;
-  if (Array.isArray(kids)) {
-    if (kids.some(isDeckyBarButton)) node.props.children = kids.filter(k => !isDeckyBarButton(k));
-    else kids.forEach(withoutDeckyButton);
-  } else if (kids && typeof kids === "object") {
-    if (isDeckyBarButton(kids)) node.props.children = null;
-    else withoutDeckyButton(kids);
+// Children with Decky's button taken out, at any depth (it sits in a nested array of the bar's
+// children: Decky appends [button] to the list).
+function stripDeckyButton(kids) {
+  if (Array.isArray(kids)) return kids.filter(k => !isDeckyBarButton(k)).map(stripDeckyButton);
+  if (kids && typeof kids === "object" && kids.props && "children" in kids.props) {
+    kids.props.children = stripDeckyButton(kids.props.children);
   }
+  return kids;
 }
 
 function hideDeckyBarButton() {
@@ -456,7 +455,7 @@ function hideDeckyBarButton() {
     const res = orig.apply(this, args);
     try {
       if (isDeckyBarButton(res)) return null;
-      withoutDeckyButton(res);
+      stripDeckyButton(res);
     } catch (e) {
       console.error("[SFH Frame Menu] could not hide Decky's bar button", e);
     }
