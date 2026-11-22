@@ -5,6 +5,12 @@
 //   1. registers the route /sfh-decky that renders Decky's QAM tab content as a page;
 //   2. adds a "Decky" item to the Frame left menu (next to Console / Steam Settings).
 //
+// Two Steam UI builds are handled. The older one is a webpack bundle (window.webpackChunksteamui):
+// components are found in its modules and patched where they are defined. The newer one (Steam beta,
+// November 2026) is a Vite bundle with no webpack registry; Decky v4 exposes its module scopes
+// (DFL.moduleScopes), but plain function components there cannot be replaced at their definition, so
+// they are wrapped in the mounted React tree instead (fiber.type), re-checked every 2 s for new mounts.
+//
 // The Frame left menu is an exported mobx observer (a React.memo object) that maps
 // frame.menu.items_for_left_frame_menu. The "steam main menu items" block (Home, Library,
 // ..., Console, Settings) is a nested component rendered with the key
@@ -37,6 +43,86 @@ const T = (ru, en) => (IS_RU ? ru : en);
 const ROUTE = "/sfh-decky";
 const MENU_MARKER = "frame-menu-steam-main-menu-items";
 const DECKY_TAB_ID = 999;
+const HAS_WEBPACK = !!window.webpackChunksteamui;
+
+// ---------- the Vite build: module scopes, minified names ----------
+
+const IDENT = c => (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || (c >= "0" && c <= "9") || c === "_" || c === "$";
+
+// The identifier right before `text` in `src` (e.g. "Cm" in "Cm.fromObject("), or null.
+function identBefore(src, text) {
+  const at = src.indexOf(text);
+  if (at <= 0) return null;
+  let start = at;
+  while (start > 0 && IDENT(src[start - 1])) start--;
+  return start < at ? src.slice(start, at) : null;
+}
+
+// The digits right after `text` in `src`, as a number, or null.
+function numberAfter(src, text) {
+  const at = src.indexOf(text);
+  if (at < 0) return null;
+  let end = at + text.length;
+  while (end < src.length && src[end] >= "0" && src[end] <= "9") end++;
+  return end > at + text.length ? Number(src.slice(at + text.length, end)) : null;
+}
+
+// [scope, value] of the first module-scope variable that passes `test`, or null.
+function findScoped(test) {
+  if (typeof DFL.findScopeDetailsByVar !== "function") return null;
+  const d = DFL.findScopeDetailsByVar(v => {
+    try {
+      return test(v);
+    } catch (e) {
+      return false;
+    }
+  });
+  return d ? [d[0], d[1]] : null;
+}
+
+// A function component whose source contains every marker.
+function findScopedFunction(...markers) {
+  const d = findScoped(v => typeof v === "function" && markers.every(m => v.toString().includes(m)));
+  return d ? d[1] : null;
+}
+
+// Wraps a function component in the mounted tree: every fiber that `match` picks gets
+// fiber.type = wrap(fiber.elementType) (one wrapper per component). The wrapper calls the original
+// as a plain function, so the original's hooks keep running in the same fiber. Re-checked every
+// 2 s for newly mounted copies (menus and popups mount later). Returns the undo function.
+function patchMountedFunction(match, wrap) {
+  const wrappers = new Map();
+  const scan = () => {
+    try {
+      walkMounted(f => {
+        const inner = typeof f.elementType === "function" && match(f) ? f.elementType : null;
+        if (!inner) return false;
+        let w = wrappers.get(inner);
+        if (!w) {
+          w = wrap(inner);
+          wrappers.set(inner, w);
+        }
+        if (f.type !== w) f.type = w;
+        if (f.alternate && f.alternate.type !== w) f.alternate.type = w;
+        return false;
+      });
+    } catch (e) {
+      console.error("[SFH Frame Menu] patch scan failed", e);
+    }
+  };
+  scan();
+  const timer = setInterval(scan, 2000);
+  return () => {
+    clearInterval(timer);
+    walkMounted(f => {
+      if (f.elementType && wrappers.get(f.elementType) === f.type) {
+        f.type = f.elementType;
+        if (f.alternate) f.alternate.type = f.elementType;
+      }
+      return false;
+    });
+  };
+}
 
 function DeckyIcon() {
   return h("svg", { viewBox: "0 0 24 24", width: "1em", height: "1em", fill: "currentColor" },
@@ -128,6 +214,14 @@ function retargetMounted(memo, from, to) {
 }
 
 function patchFrameMenu() {
+  if (!HAS_WEBPACK) {
+    // the main menu items block: the element keyed "frame-menu-steam-main-menu-items-N"
+    return patchMountedFunction(
+      f => typeof f.key === "string" && f.key.startsWith(MENU_MARKER),
+      inner => function SfhMainItems(props) {
+        return MainItemsWithDecky({ ...props, sfhInner: inner });
+      });
+  }
   const memo = findMenuMemo();
   if (!memo) {
     console.warn("[SFH Frame Menu] Frame menu component not found, menu item not added");
@@ -254,6 +348,16 @@ function isQamButton(el) {
 }
 
 function patchQuickSettings() {
+  if (!HAS_WEBPACK) {
+    // the bar's quick-access button: renders <BarPopup popupContents={<QuickAccessMenu vr …/>}>
+    const button = findScopedFunction(QAM_BUTTON_MARKER, "popupContents");
+    if (!button) return null;
+    return patchMountedFunction(
+      f => f.elementType === button,
+      inner => function SfhQamButton(props) {
+        return QamButtonWithDecky({ ...props, sfhButton: inner });
+      });
+  }
   const memo = findBarMemo();
   if (!memo) return null;
   if (memo.__sfhOrig) return () => {};
@@ -369,6 +473,21 @@ function importedIds(src) {
 }
 
 function findPairing() {
+  if (!HAS_WEBPACK) {
+    // DisconnectAllControllers(){let e=<Msg>.fromObject({disconnect_all_controllers:!0});<Conn>.BSendMsg(<id>,e)…}
+    // The message, the connection and the message id are read from its source; both names live in
+    // the store's module scope.
+    const d = findScoped(v => v && typeof v === "object" && typeof v.DisconnectAllControllers === "function");
+    if (!d) return null;
+    const [scope, store] = d;
+    const src = store.DisconnectAllControllers.toString();
+    const msgName = identBefore(src, ".fromObject(");
+    const connName = identBefore(src, ".BSendMsg(");
+    const id = numberAfter(src, ".BSendMsg(");
+    const Msg = msgName ? scope[msgName] : null, conn = connName ? scope[connName] : null;
+    const ok = Msg && typeof Msg.fromObject === "function" && conn && typeof conn.BSendMsg === "function" && id !== null;
+    return { store, sender: ok ? conn : null, proto: ok ? { Msg, id } : null };
+  }
   let req = null;
   window.webpackChunksteamui.push([[Symbol("sfh-frame-pairing")], {}, r => { req = r; }]);
   if (!req) return null;
@@ -410,6 +529,10 @@ function connectedControllers(p) {
 }
 
 function disconnectOne(p, serial) {
+  if (p.proto.Msg) {   // the Vite build
+    p.sender.BSendMsg(p.proto.id, p.proto.Msg.fromObject({ disconnect_controller: { serial_number: serial } }));
+    return;
+  }
   const msg = p.proto.hp.fromObject({ disconnect_controller: { serial_number: serial } });
   p.sender.BSendMsg(p.proto.lK.Gd, msg);
 }
@@ -418,6 +541,7 @@ function disconnectOne(p, serial) {
 // IndividualSteamFrameController({ bIsLeftController }). Fallback: a letter.
 // A named icon component from Steam's icon module (e.g. "SteamFrameIcon"), or null.
 function findSteamIcon(name) {
+  if (!HAS_WEBPACK) return null;   // export names are minified away in the Vite build
   let req = null;
   window.webpackChunksteamui.push([[Symbol("sfh-frame-icon")], {}, r => { req = r; }]);
   if (!req) return null;
@@ -434,6 +558,15 @@ function findSteamIcon(name) {
 }
 
 function findControllerIcon() {
+  if (!HAS_WEBPACK) {
+    // the Frame controllers' battery row draws it: (0,Y.jsx)(<Icon>,{bIsLeftController:!0})
+    const d = findScoped(v => typeof v === "function" && v.toString().includes("#Settings_Controller_Battery") &&
+      v.toString().includes(",{bIsLeftController"));
+    if (!d) return null;
+    const name = identBefore(d[1].toString(), ",{bIsLeftController");
+    const icon = name ? d[0][name] : null;
+    return typeof icon === "function" ? icon : null;
+  }
   return findSteamIcon("IndividualSteamFrameController");
 }
 
