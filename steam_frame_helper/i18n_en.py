@@ -86,6 +86,7 @@ EN = {
     "Где показывать Decky в шлеме": "Where to show Decky in the headset",
     "Левое меню": "Left menu",
     "Быстрые настройки": "Quick Settings",
+    "Кнопка на панели": "Bar button",
     "Меню в шлеме обновится при следующем открытии":
         "The headset menu will update the next time it opens",
     "Нужен запущенный Steam и плагин SFH Frame Menu в Decky":

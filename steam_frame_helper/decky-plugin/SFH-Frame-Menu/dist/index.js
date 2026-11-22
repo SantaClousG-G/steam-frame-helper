@@ -409,6 +409,89 @@ function patchQuickSettingsWithRetry() {
   };
 }
 
+// ---------- Decky's own button on the Frame bar (Decky v4) ----------
+//
+// Decky v4 puts a "Decky" button on the Frame bar itself: it afterPatches a memo component of the
+// bar and adds a forwardRef button with tooltip "Decky". To hide it we wrap that memo's render once
+// more (over Decky's patch) and drop the button from what it returns.
+
+function isDeckyBarButton(el) {
+  return !!el && typeof el === "object" && el.props?.tooltip === "Decky" && el.type?.$$typeof === Symbol.for("react.forward_ref");
+}
+
+// The bar memo that renders Decky's button: the nearest memo above the mounted button.
+function findDeckyBarMemo() {
+  let found = null;
+  walkMounted(f => {
+    if (f.memoizedProps?.tooltip !== "Decky" || f.elementType?.$$typeof !== Symbol.for("react.forward_ref")) return false;
+    for (let p = f.return; p; p = p.return) {
+      if (p.elementType?.$$typeof === Symbol.for("react.memo") && typeof p.elementType.type === "function") {
+        found = p.elementType;
+        return true;
+      }
+    }
+    return false;
+  });
+  return found;
+}
+
+function withoutDeckyButton(node) {
+  const kids = node?.props?.children;
+  if (Array.isArray(kids)) {
+    if (kids.some(isDeckyBarButton)) node.props.children = kids.filter(k => !isDeckyBarButton(k));
+    else kids.forEach(withoutDeckyButton);
+  } else if (kids && typeof kids === "object") {
+    if (isDeckyBarButton(kids)) node.props.children = null;
+    else withoutDeckyButton(kids);
+  }
+}
+
+function hideDeckyBarButton() {
+  const memo = findDeckyBarMemo();
+  if (!memo) return null;
+  if (memo.__sfhBarOrig) return () => {};
+  const orig = memo.type;
+  memo.__sfhBarOrig = orig;
+  memo.type = function SfhBarNoDecky(...args) {
+    const res = orig.apply(this, args);
+    try {
+      if (isDeckyBarButton(res)) return null;
+      withoutDeckyButton(res);
+    } catch (e) {
+      console.error("[SFH Frame Menu] could not hide Decky's bar button", e);
+    }
+    return res;
+  };
+  const patched = memo.type;
+  retargetMounted(memo, orig, patched);
+  return () => {
+    if (memo.__sfhBarOrig) {
+      if (memo.type === patched) memo.type = memo.__sfhBarOrig;
+      delete memo.__sfhBarOrig;
+      retargetMounted(memo, patched, orig);
+    }
+  };
+}
+
+// The bar (and Decky's button on it) mounts only while the dashboard is shown: keep looking every
+// 2 s until it is there; once the memo is patched, later mounts use the patched render.
+function hideDeckyBarButtonWithRetry() {
+  let undo = null, timer = null;
+  const attempt = () => {
+    try {
+      undo = hideDeckyBarButton();
+    } catch (e) {
+      console.error("[SFH Frame Menu] bar button hide error", e);
+    }
+    if (!undo) timer = setTimeout(attempt, 2000);
+  };
+  timer = setTimeout(attempt, 0);
+  return () => {
+    clearTimeout(timer);
+    undo?.();
+  };
+}
+
 // ---------- VR HUD switch ----------
 //
 // The SFH VR HUD (tools/vr_hud.py) polls window.__sfhHud in this JS context over CDP
@@ -643,9 +726,9 @@ const PLACEMENT_KEY = "sfh-frame-menu.placement";
 function loadPlacement() {
   try {
     const v = JSON.parse(localStorage.getItem(PLACEMENT_KEY) || "{}");
-    return { menu: v.menu !== false, qam: v.qam !== false };
+    return { menu: v.menu !== false, qam: v.qam !== false, bar: v.bar !== false };
   } catch (e) {
-    return { menu: true, qam: true };
+    return { menu: true, qam: true, bar: true };
   }
 }
 
@@ -653,6 +736,7 @@ const placement = {
   value: loadPlacement(),
   unpatchMenu: null,
   unpatchQam: null,
+  unhideBar: null,
   listeners: new Set(),
 
   apply() {
@@ -660,9 +744,11 @@ const placement = {
     if (!this.value.menu && this.unpatchMenu) { this.unpatchMenu(); this.unpatchMenu = null; }
     if (this.value.qam && !this.unpatchQam) this.unpatchQam = patchQuickSettingsWithRetry();
     if (!this.value.qam && this.unpatchQam) { this.unpatchQam(); this.unpatchQam = null; }
+    if (!this.value.bar && !this.unhideBar) this.unhideBar = hideDeckyBarButtonWithRetry();
+    if (this.value.bar && this.unhideBar) { this.unhideBar(); this.unhideBar = null; }
   },
   set(next) {
-    this.value = { menu: next.menu !== false, qam: next.qam !== false };
+    this.value = { menu: next.menu !== false, qam: next.qam !== false, bar: next.bar !== false };
     try {
       localStorage.setItem(PLACEMENT_KEY, JSON.stringify(this.value));
     } catch (e) {
@@ -675,7 +761,8 @@ const placement = {
   removeAll() {
     this.unpatchQam?.();
     this.unpatchMenu?.();
-    this.unpatchQam = this.unpatchMenu = null;
+    this.unhideBar?.();
+    this.unpatchQam = this.unpatchMenu = this.unhideBar = null;
   },
 };
 
@@ -700,6 +787,9 @@ function PlacementPanel() {
     row("qam", T("Быстрые настройки", "Quick Settings"),
       T("Вкладка Decky в окне быстрых настроек на панели",
         "A Decky tab in the Quick Settings popup on the bar")),
+    row("bar", T("Кнопка на панели", "Bar button"),
+      T("Кнопка «Decky» на нижней панели (её добавляет сам Decky)",
+        "The “Decky” button on the bottom bar (added by Decky itself)")),
     h(DFL.PanelSectionRow, null,
       h("div", { style: { fontSize: "12px", opacity: 0.6 } },
         T("Меню обновится при следующем открытии. Если выключить оба, Decky открывается только из Steam Frame Helper (кнопка «Открыть в шлеме»).",

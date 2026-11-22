@@ -414,8 +414,9 @@ class DeckyTool(StatusTool):
 
 
 class DeckyPlacementRow(Gtk.Box):
-    """Where the SFH Frame Menu plugin shows Decky in the headset: left menu and/or Quick
-    Settings (tools/decky_placement.py talks to the plugin over CDP). Both may be off."""
+    """Where Decky is shown in the headset: the left menu and/or Quick Settings (added by the SFH
+    Frame Menu plugin) and Decky's own bar button (the plugin hides it on request);
+    tools/decky_placement.py talks to the plugin over CDP. All may be off."""
 
     def __init__(self, runner):
         super().__init__(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
@@ -424,7 +425,8 @@ class DeckyPlacementRow(Gtk.Box):
         text, self.sub = title_block(_("Где показывать Decky в шлеме"))
         self.pack_start(text, True, True, 0)
         self.checks = {}
-        for key, label in (("menu", _("Левое меню")), ("qam", _("Быстрые настройки"))):
+        for key, label in (("menu", _("Левое меню")), ("qam", _("Быстрые настройки")),
+                           ("bar", _("Кнопка на панели"))):
             chk = Gtk.CheckButton(label=label)
             chk.connect("toggled", self.on_toggled)
             chk.set_sensitive(False)
@@ -438,8 +440,9 @@ class DeckyPlacementRow(Gtk.Box):
         ok = "menu" in info and "qam" in info
         self.updating = True
         for key, chk in self.checks.items():
-            chk.set_sensitive(ok)
-            if ok:
+            known = ok and key in info   # "bar": plugin 0.4.4 and newer
+            chk.set_sensitive(known)
+            if known:
                 chk.set_active(info[key] == "1")
         self.updating = False
         if ok:
@@ -458,9 +461,11 @@ class DeckyPlacementRow(Gtk.Box):
         if self.updating:
             return
         # Both may be off: Decky is then opened only with "Open in headset" in SFH.
-        menu, qam = self.checks["menu"].get_active(), self.checks["qam"].get_active()
-        self.runner.run(run_user, [tool("decky_placement.py"), "set",
-                                   "1" if menu else "0", "1" if qam else "0"],
+        args = [tool("decky_placement.py"), "set"]
+        args += ["1" if self.checks[k].get_active() else "0" for k in ("menu", "qam")]
+        if self.checks["bar"].get_sensitive():
+            args.append("1" if self.checks["bar"].get_active() else "0")
+        self.runner.run(run_user, args,
                         _("Decky в шлеме: место показа"), on_done=self.show_state,
                         widgets=list(self.checks.values()))
 
