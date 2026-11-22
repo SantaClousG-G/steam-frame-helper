@@ -4,7 +4,7 @@ English | [Русский](GUIDE.ru.md)
 
 Steam Frame Helper (SFH) is a window of tweaks and utilities for the Steam Frame. It runs in SteamOS Desktop Mode. Almost every feature is turned on and off with a single button, and this guide tells you what each one actually changes on the system.
 
-This guide matches Steam Frame Helper 1.7.5.
+This guide matches Steam Frame Helper 1.7.6.
 
 ## Contents
 
@@ -177,7 +177,7 @@ The subtitle shows the Decky version, the service state, whether port 1337 is re
 | Button | What happens |
 |---|---|
 | Open in headset | Opens the Decky panel in the headset, on a page of the Steam UI. Steam must be running. This is a fallback: the left menu or Quick Settings is more convenient (see below). |
-| Install / update | Downloads the latest stable Decky from GitHub and verifies its SHA-256 checksum (a mismatch cancels the install). Creates the `~/homebrew` folder and the `plugin_loader` system service and starts it. Enables the Steam UI debugging port that Decky needs. Installs the bundled SFH Frame Menu plugin. The plugin store stays the official one. Adds a "Decky" shortcut to the Steam library (Steam restarts for a few seconds to do this). Pressing it again updates Decky to the latest version. |
+| Install / update | Downloads the latest stable Decky from GitHub (when the headset runs a Steam client beta or Decky is on the prerelease channel: the latest including prereleases, as the Steam beta UI often needs a Decky prerelease) and verifies its SHA-256 checksum (a mismatch cancels the install). Creates the `~/homebrew` folder and the `plugin_loader` system service and starts it. Enables the Steam UI debugging port that Decky needs. Installs the bundled SFH Frame Menu plugin. The plugin store stays the official one. Adds a "Decky" shortcut to the Steam library (Steam restarts for a few seconds to do this). Pressing it again updates Decky to the latest version. |
 | Repair | Does not download Decky again. It stops the service, checks folders and permissions, restores the service file, the bundled plugin and the library shortcut, then restarts the service. If the Decky file is missing, it reinstalls Decky. Steam restarts as well. |
 | Remove | Removes the Decky service and loader, and the "Decky" library shortcut. Installed plugins in `~/homebrew/plugins` are kept. |
 
@@ -197,14 +197,15 @@ The subtitle shows which store is in use. Plugins from a third-party store are n
 
 #### Where to show Decky in the headset
 
-The Frame has no classic Quick Access Menu in VR, so the bundled SFH Frame Menu plugin adds Decky to other places. Here you choose where it appears.
+The Frame has no classic Quick Access Menu in VR, so the bundled SFH Frame Menu plugin adds Decky to other places. Decky 4 and newer puts its own button on the Frame bottom bar. Here you choose where Decky appears.
 
 | Checkbox | What happens |
 |---|---|
 | Left menu | Adds a "Decky" item to the Frame left menu, next to Settings. |
 | Quick Settings | Adds a Decky tab to the Quick Settings popup on the Frame bar. |
+| Bar button | The "Decky" button on the Frame bottom bar (added by Decky 4 itself). Clear the box and the plugin hides it. Active with SFH Frame Menu 0.4.4 and newer. |
 
-You can clear both boxes: Decky is then not shown anywhere in the headset and opens only from SFH with "Open in headset". The headset menu will update the next time it opens. The boxes are active only when Steam is running and the SFH Frame Menu plugin is loaded in Decky; otherwise the subtitle says "Steam must be running and the SFH Frame Menu plugin must be installed in Decky". You can change the same setting inside the plugin, in the headset.
+You can clear all boxes: Decky is then not shown anywhere in the headset and opens only from SFH with "Open in headset". The headset menu will update the next time it opens. The boxes are active only when Steam is running and the SFH Frame Menu plugin is loaded in Decky; otherwise the subtitle says "Steam must be running and the SFH Frame Menu plugin must be installed in Decky". You can change the same setting inside the plugin, in the headset.
 
 ### Installed plugins section
 
