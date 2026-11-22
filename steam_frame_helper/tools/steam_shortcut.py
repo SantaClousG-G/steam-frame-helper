@@ -129,6 +129,25 @@ def steam_running():
     return subprocess.run(["systemctl", "--user", "is-active", "--quiet", "steam.service"]).returncode == 0
 
 
+def rerun_outside_steam(script, argv):
+    """Stopping steam.service stops everything in its control group. A tool started from inside Steam
+    (the SFH app, Decky, a Steam shortcut) is in that group, so it was killed together with Steam and never
+    started it again: Steam stayed off. Run the tool again in a transient user unit of its own and wait for
+    it. Returns its exit code, or None when this process is already outside Steam."""
+    if os.environ.get("SFH_OUTSIDE_STEAM"):
+        return None
+    try:
+        with open("/proc/self/cgroup", encoding="utf-8") as f:
+            inside = "steam.service" in f.read()
+    except OSError:
+        inside = False
+    if not inside:
+        return None
+    cmd = ["systemd-run", "--user", "--wait", "--pipe", "--collect", "--quiet",
+           "--setenv=SFH_OUTSIDE_STEAM=1", sys.executable, os.path.abspath(script)] + list(argv)
+    return subprocess.run(cmd).returncode
+
+
 def change(add):
     was_running = steam_running()
     if was_running:
@@ -167,6 +186,9 @@ def main():
         add = cmd == "add"
         # Restarting Steam is disruptive in VR: only do it when something changes.
         if any(p != add for p in presence()):
+            code = rerun_outside_steam(__file__, sys.argv[1:])
+            if code is not None:
+                return code
             change(add)
         return 0
     print(__doc__, file=sys.stderr)

@@ -351,6 +351,11 @@ def cmd_lepton14_install():
 
 def main():
     args = sys.argv[1:]
+    # install / remove restart Steam: not from inside Steam's control group (see steam_shortcut.py)
+    if args[:1] in (["install"], ["remove"]):
+        code = sc.rerun_outside_steam(__file__, args)
+        if code is not None:
+            return code
     wanted = "auto"
     if "--lepton" in args:
         i = args.index("--lepton")
